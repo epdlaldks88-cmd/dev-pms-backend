@@ -1,0 +1,364 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── User ────────────────────────────────────────────────────────────────────
+
+model User {
+  id         String   @id @default(uuid())
+  email      String   @unique
+  password   String
+  name       String
+  avatar     String?
+  role       Role     @default(MEMBER)
+  position   String?
+  department String?
+  phone      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  projectMembers  ProjectMember[]
+  assignedTasks   TaskAssignee[]
+  comments        Comment[]
+  notifications   Notification[]
+  activityLogs    ActivityLog[]
+  refreshTokens   RefreshToken[]
+  createdProjects Project[]    @relation("ProjectCreator")
+  createdTasks    Task[]       @relation("TaskCreator")
+  uploadedFiles   Attachment[]
+  workLogs        WorkLog[]
+  createdMeetings Meeting[]    @relation("MeetingCreator")
+}
+
+enum Role {
+  ADMIN
+  MEMBER
+}
+
+// ─── Project ─────────────────────────────────────────────────────────────────
+
+model Project {
+  id          String        @id @default(uuid())
+  name        String
+  description String?
+  status      ProjectStatus @default(ACTIVE)
+  startDate   DateTime?
+  endDate     DateTime?
+  color       String        @default("#6366f1")
+  icon        String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  createdById String
+  createdBy   User          @relation("ProjectCreator", fields: [createdById], references: [id])
+
+  members      ProjectMember[]
+  steps        Step[]
+  tasks        Task[]
+  labels       Label[]
+  activityLogs ActivityLog[]
+  meetings     Meeting[]
+}
+
+enum ProjectStatus {
+  ACTIVE
+  COMPLETED
+  ARCHIVED
+  ON_HOLD
+}
+
+model ProjectMember {
+  id       String      @id @default(uuid())
+  role     ProjectRole @default(MEMBER)
+  joinedAt DateTime    @default(now())
+
+  userId    String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, projectId])
+}
+
+enum ProjectRole {
+  OWNER
+  ADMIN
+  MEMBER
+  VIEWER
+}
+
+// ─── Step (Kanban Column / Project Phase) ────────────────────────────────────
+
+model Step {
+  id        String   @id @default(uuid())
+  name      String
+  order     Int      @default(0)
+  color     String   @default("#e2e8f0")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  tasks Task[]
+}
+
+// ─── Task ────────────────────────────────────────────────────────────────────
+
+model Task {
+  id          String     @id @default(uuid())
+  title       String
+  description String?
+  priority    Priority   @default(MEDIUM)
+  status      TaskStatus @default(TODO)
+  startDate   DateTime?
+  dueDate     DateTime?
+  order       Int        @default(0)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  projectId   String
+  project     Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  stepId      String?
+  step        Step?   @relation(fields: [stepId], references: [id], onDelete: SetNull)
+  createdById String
+  createdBy   User    @relation("TaskCreator", fields: [createdById], references: [id])
+  parentId    String?
+  parentTask  Task?   @relation("SubTasks", fields: [parentId], references: [id])
+
+  subTasks     Task[]         @relation("SubTasks")
+  assignees    TaskAssignee[]
+  comments     Comment[]
+  attachments  Attachment[]
+  labels       TaskLabel[]
+  activityLogs ActivityLog[]
+  personnel    TaskPersonnel[]
+  workLogs     WorkLog[]
+}
+
+// ─── Partner (파트너사) & Personnel (인력) ──────────────────────────────────────
+
+model Partner {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  contactName String?
+  email       String?
+  phone       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  personnel Personnel[]
+}
+
+model Personnel {
+  id        String   @id @default(uuid())
+  name      String
+  position  String?
+  email     String?
+  phone     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  partnerId String
+  partner   Partner @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+
+  tasks TaskPersonnel[]
+}
+
+model TaskPersonnel {
+  assignedAt DateTime @default(now())
+
+  taskId      String
+  task        Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  personnelId String
+  personnel   Personnel @relation(fields: [personnelId], references: [id], onDelete: Cascade)
+
+  @@id([taskId, personnelId])
+}
+
+enum Priority {
+  URGENT
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  IN_REVIEW
+  DONE
+  CANCELLED
+}
+
+model TaskAssignee {
+  assignedAt DateTime @default(now())
+
+  taskId String
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([taskId, userId])
+}
+
+// ─── Label ───────────────────────────────────────────────────────────────────
+
+model Label {
+  id    String @id @default(uuid())
+  name  String
+  color String @default("#6366f1")
+
+  projectId String
+  project   Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  tasks     TaskLabel[]
+}
+
+model TaskLabel {
+  taskId  String
+  task    Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  labelId String
+  label   Label  @relation(fields: [labelId], references: [id], onDelete: Cascade)
+
+  @@id([taskId, labelId])
+}
+
+// ─── Comment ─────────────────────────────────────────────────────────────────
+
+model Comment {
+  id        String   @id @default(uuid())
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  taskId   String
+  task     Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  authorId String
+  author   User     @relation(fields: [authorId], references: [id])
+  parentId String?
+  parent   Comment?  @relation("Replies", fields: [parentId], references: [id])
+  replies  Comment[] @relation("Replies")
+}
+
+// ─── Attachment ──────────────────────────────────────────────────────────────
+
+model Attachment {
+  id           String   @id @default(uuid())
+  filename     String
+  originalName String
+  mimetype     String
+  size         Int
+  url          String
+  createdAt    DateTime @default(now())
+
+  taskId       String
+  task         Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  uploadedById String
+  uploadedBy   User   @relation(fields: [uploadedById], references: [id])
+}
+
+// ─── Notification ────────────────────────────────────────────────────────────
+
+model Notification {
+  id        String           @id @default(uuid())
+  type      NotificationType
+  title     String
+  message   String
+  isRead    Boolean          @default(false)
+  link      String?
+  createdAt DateTime         @default(now())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+enum NotificationType {
+  TASK_ASSIGNED
+  TASK_UPDATED
+  COMMENT_ADDED
+  MENTION
+  DUE_DATE_APPROACHING
+  PROJECT_INVITATION
+}
+
+// ─── ActivityLog ─────────────────────────────────────────────────────────────
+
+model ActivityLog {
+  id         String         @id @default(uuid())
+  action     ActivityAction
+  entityType String
+  entityId   String
+  entityName String
+  metadata   Json?
+  createdAt  DateTime       @default(now())
+
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  taskId    String?
+  task      Task?    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+}
+
+enum ActivityAction {
+  CREATED
+  UPDATED
+  DELETED
+  ASSIGNED
+  UNASSIGNED
+  COMMENTED
+  UPLOADED
+  STATUS_CHANGED
+  PRIORITY_CHANGED
+  MOVED
+}
+
+// ─── RefreshToken ────────────────────────────────────────────────────────────
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ─── WorkLog (워크로드 / 일감) ───────────────────────────────────────────────
+
+model WorkLog {
+  id          String   @id @default(uuid())
+  description String?
+  hours       Float    @default(0)
+  workDate    DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  taskId String
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+}
+
+// ─── Meeting (회의록) ─────────────────────────────────────────────────────────
+
+model Meeting {
+  id          String   @id @default(uuid())
+  title       String
+  content     String?
+  meetingDate DateTime @default(now())
+  attendees   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  projectId   String?
+  project     Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  createdById String
+  createdBy   User     @relation("MeetingCreator", fields: [createdById], references: [id])
+}
