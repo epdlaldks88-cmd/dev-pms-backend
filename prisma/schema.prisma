@@ -38,6 +38,7 @@ model User {
   createdNotices  Notice[]     @relation("NoticeCreator")
   createdCanvases Canvas[]     @relation("CanvasCreator")
   canvasComments  CanvasComment[] @relation("CanvasCommentAuthor")
+  createdSheets   Sheet[]      @relation("SheetCreator")
   sentMessages     Message[]   @relation("MessageSender")
   receivedMessages Message[]   @relation("MessageRecipient")
 }
@@ -73,6 +74,7 @@ model Project {
   issues       Issue[]
   notices      Notice[]
   canvases     Canvas[]
+  sheets       Sheet[]
 }
 
 enum ProjectStatus {
@@ -481,6 +483,22 @@ model CanvasComment {
   canvas    Canvas   @relation(fields: [canvasId], references: [id], onDelete: Cascade)
   userId    String
   user      User     @relation("CanvasCommentAuthor", fields: [userId], references: [id])
+}
+
+// ─── Sheet (스프레드시트) ─────────────────────────────────────────────────────
+
+model Sheet {
+  id        String   @id @default(uuid())
+  name      String   @default("시트1")
+  order     Int      @default(0)
+  data      Json     @default("{\"cells\":{},\"rows\":100,\"cols\":26}")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  projectId   String
+  project     Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdById String
+  createdBy   User    @relation("SheetCreator", fields: [createdById], references: [id])
 }
 
 // ─── Message (사용자 간 쪽지) ──────────────────────────────────────────────────

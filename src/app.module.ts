@@ -21,6 +21,7 @@ import { NoticesModule } from './notices/notices.module';
 import { SearchModule } from './search/search.module';
 import { MessagesModule } from './messages/messages.module';
 import { CanvasModule } from './canvas/canvas.module';
+import { SheetsModule } from './sheets/sheets.module';
 
 @Module({
   imports: [
@@ -48,6 +49,7 @@ import { CanvasModule } from './canvas/canvas.module';
     SearchModule,
     MessagesModule,
     CanvasModule,
+    SheetsModule,
   ],
 })
 export class AppModule {}
