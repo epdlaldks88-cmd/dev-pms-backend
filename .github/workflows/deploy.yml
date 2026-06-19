@@ -1,0 +1,29 @@
+name: Deploy to NCP
+
+# main에 push되면 자동 배포 (수동 실행도 가능)
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.NCP_HOST }}
+          username: ${{ secrets.NCP_USER }}
+          key: ${{ secrets.NCP_SSH_KEY }}
+          script: |
+            set -e
+            echo "▶ Pulling frontend (dev-pms)..."
+            cd ~/dev-pms && git pull origin main
+            echo "▶ Pulling backend (dev-pms-backend)..."
+            cd ~/dev-pms-backend && git pull origin main
+            echo "▶ Rebuilding & restarting containers..."
+            docker compose -f docker-compose.prod.yml up -d --build
+            echo "▶ Cleaning up old images..."
+            docker image prune -f
+            echo "✅ Deploy done."
