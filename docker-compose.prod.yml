@@ -38,8 +38,10 @@ services:
     # ports:
     #   - '3000:3000'
 
-  nginx:
-    image: nginx:stable
+  # 프론트(React 빌드) 정적 서빙 + /api 프록시 = 공개 진입점
+  # build context는 형제로 clone한 dev-pms 저장소의 frontend 디렉터리
+  web:
+    build: ../dev-pms/frontend
     restart: always
     depends_on:
       - backend
@@ -47,10 +49,6 @@ services:
       - '80:80'
       # 도메인+HTTPS 적용 시 아래 주석 해제
       # - '443:443'
-    volumes:
-      - ./nginx/conf.d:/etc/nginx/conf.d:ro
-      # 인증서 적용 시 사용
-      # - ./nginx/certs:/etc/nginx/certs:ro
 
 volumes:
   pgdata:
