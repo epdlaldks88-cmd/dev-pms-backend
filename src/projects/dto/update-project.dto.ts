@@ -25,6 +25,10 @@ export class UpdateProjectDto {
   endDate?: string;
 
   @IsOptional()
+  @IsDateString()
+  openDate?: string;
+
+  @IsOptional()
   @IsString()
   color?: string;
 

@@ -25,6 +25,12 @@ export class CreateProjectDto {
   endDate?: string;
 
   @IsOptional()
+  @ValidateIf((o) => o.openDate !== '' && o.openDate != null)
+  @IsDateString()
+  @Transform(({ value }) => value || undefined)
+  openDate?: string;
+
+  @IsOptional()
   @IsString()
   color?: string;
 

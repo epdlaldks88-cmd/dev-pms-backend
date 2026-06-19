@@ -57,6 +57,7 @@ model Project {
   status      ProjectStatus @default(ACTIVE)
   startDate   DateTime?
   endDate     DateTime?
+  openDate    DateTime?
   color       String        @default("#6366f1")
   icon        String?
   createdAt   DateTime      @default(now())
