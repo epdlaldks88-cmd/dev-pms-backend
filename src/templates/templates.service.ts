@@ -100,6 +100,17 @@ export class TemplatesService {
     });
   }
 
+  // 템플릿 파일 다운로드: 로그인 사용자(전사 공유 자료)면 허용. 파일 경로/메타 반환.
+  async getFileDownloadMeta(fileId: string) {
+    const f = await this.prisma.templateFile.findUnique({ where: { id: fileId } });
+    if (!f) throw new NotFoundException('파일을 찾을 수 없습니다.');
+
+    const filePath = path.join(process.cwd(), 'uploads', f.filename);
+    if (!fs.existsSync(filePath)) throw new NotFoundException('파일이 존재하지 않습니다.');
+
+    return { filePath, mimetype: f.mimetype, originalName: f.originalName };
+  }
+
   async removeFile(fileId: string) {
     const f = await this.prisma.templateFile.findUnique({ where: { id: fileId } });
     if (!f) throw new NotFoundException('파일을 찾을 수 없습니다.');

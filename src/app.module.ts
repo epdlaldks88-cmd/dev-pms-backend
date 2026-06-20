@@ -1,7 +1,5 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { ServeStaticModule } from '@nestjs/serve-static';
-import { join, extname } from 'path';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
@@ -28,20 +26,8 @@ import { RoomsModule } from './rooms/rooms.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
-    ServeStaticModule.forRoot({
-      rootPath: join(__dirname, '..', 'uploads'),
-      serveRoot: '/uploads',
-      serveStaticOptions: {
-        // 업로드 파일이 브라우저에서 실행/렌더링되어 저장형 XSS가 되는 것을 방지.
-        setHeaders: (res, filePath) => {
-          res.setHeader('X-Content-Type-Options', 'nosniff');
-          const ext = extname(filePath).toLowerCase();
-          // 이미지·PDF만 인라인 미리보기 허용, 나머지는 강제 다운로드
-          const inlineOk = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp', '.pdf'].includes(ext);
-          if (!inlineOk) res.setHeader('Content-Disposition', 'attachment');
-        },
-      },
-    }),
+    // 업로드 파일은 정적 공개 서빙 대신 인증된 다운로드 엔드포인트로만 제공한다.
+    // (GET /api/attachments/:id/download, GET /api/templates/files/:id/download)
     PrismaModule,
     AuthModule,
     UsersModule,

@@ -56,6 +56,27 @@ export class AttachmentsService {
     });
   }
 
+  // 다운로드: 프로젝트 멤버(또는 시스템 관리자)만 허용. 파일 경로/메타 반환.
+  async getDownloadMeta(attachmentId: string, userId: string, userRole?: string) {
+    const attachment = await this.prisma.attachment.findUnique({
+      where: { id: attachmentId },
+      include: { task: { select: { projectId: true } } },
+    });
+    if (!attachment) throw new NotFoundException();
+
+    if (userRole !== 'ADMIN') {
+      const member = await this.prisma.projectMember.findUnique({
+        where: { userId_projectId: { userId, projectId: attachment.task.projectId } },
+      });
+      if (!member) throw new ForbiddenException('해당 프로젝트의 멤버가 아닙니다.');
+    }
+
+    const filePath = path.join(process.cwd(), 'uploads', attachment.filename);
+    if (!fs.existsSync(filePath)) throw new NotFoundException('파일이 존재하지 않습니다.');
+
+    return { filePath, mimetype: attachment.mimetype, originalName: attachment.originalName };
+  }
+
   async remove(attachmentId: string, userId: string, userRole?: string) {
     const attachment = await this.prisma.attachment.findUnique({
       where: { id: attachmentId },

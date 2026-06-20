@@ -1,7 +1,8 @@
 import {
-  Controller, Get, Post, Patch, Delete, Body, Param, Query, Req,
+  Controller, Get, Post, Patch, Delete, Body, Param, Query, Req, Res,
   UseGuards, UseInterceptors, UploadedFile,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
@@ -9,6 +10,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { TemplatesService } from './templates.service';
 import { CreateTemplateDto, UpdateTemplateDto } from './dto/template.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { streamFileToResponse } from '../common/file-stream.util';
 
 @UseGuards(JwtAuthGuard)
 @Controller('templates')
@@ -54,6 +56,12 @@ export class TemplatesController {
   )
   addFile(@Param('id') id: string, @UploadedFile() file: Express.Multer.File) {
     return this.templatesService.addFile(id, file);
+  }
+
+  @Get('files/:fileId/download')
+  async downloadFile(@Param('fileId') fileId: string, @Res() res: Response) {
+    const meta = await this.templatesService.getFileDownloadMeta(fileId);
+    streamFileToResponse(res, meta.filePath, meta.mimetype, meta.originalName);
   }
 
   @Delete('files/:fileId')
