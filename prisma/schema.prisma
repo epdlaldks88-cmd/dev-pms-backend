@@ -129,6 +129,7 @@ model Task {
   id          String     @id @default(uuid())
   title       String
   description String?
+  requester   String?
   priority    Priority   @default(MEDIUM)
   status      TaskStatus @default(TODO)
   startDate   DateTime?

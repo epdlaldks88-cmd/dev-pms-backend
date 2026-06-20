@@ -9,6 +9,7 @@ const TASK_SELECT = {
   id: true,
   title: true,
   description: true,
+  requester: true,
   priority: true,
   status: true,
   startDate: true,
@@ -142,6 +143,7 @@ export class TasksService {
       data: {
         title: raw.title,
         description: raw.description || undefined,
+        requester: raw.requester || undefined,
         priority: raw.priority,
         status: raw.status,
         stepId: raw.stepId || undefined,
