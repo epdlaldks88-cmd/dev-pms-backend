@@ -98,11 +98,12 @@ export class MessagesService {
       senderName: sender?.name ?? '누군가',
     });
 
+    const preview = dto.content.length > 100 ? `${dto.content.slice(0, 100)}…` : dto.content;
     await this.notifications.create({
       userId: dto.recipientId,
       type: 'MENTION',
-      title: '새 멘션',
-      message: `${sender?.name ?? '누군가'}님이 멘션을 보냈습니다.`,
+      title: `${sender?.name ?? '누군가'}님`,
+      message: preview,
       link: `/messages?to=${senderId}`,
     });
 
