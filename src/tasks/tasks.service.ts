@@ -94,8 +94,21 @@ export class TasksService {
         ...TASK_SELECT,
         subTasks: { select: TASK_SELECT },
       },
-      orderBy: [{ startDate: 'asc' }, { createdAt: 'asc' }],
+      orderBy: [{ order: 'asc' }, { startDate: 'asc' }, { createdAt: 'asc' }],
     });
+  }
+
+  // 간트 좌측 태스크 순서 일괄 저장 (드래그 정렬)
+  async reorderGantt(projectId: string, taskIds: string[]) {
+    await this.prisma.$transaction(
+      taskIds.map((id, index) =>
+        this.prisma.task.updateMany({
+          where: { id, projectId },
+          data: { order: index },
+        }),
+      ),
+    );
+    return { ok: true };
   }
 
   async findOne(taskId: string) {
