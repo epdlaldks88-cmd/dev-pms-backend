@@ -23,6 +23,8 @@ jobs:
             echo "▶ Pulling backend (dev-pms-backend)..."
             cd ~/dev-pms-backend && git pull origin main
             echo "▶ Rebuilding & restarting containers..."
+            # 이전 배포가 남긴 컨테이너(이름 충돌 방지)를 먼저 정리
+            docker compose -f docker-compose.prod.yml down --remove-orphans || true
             docker compose -f docker-compose.prod.yml up -d --build
             echo "▶ Cleaning up old images..."
             docker image prune -f
