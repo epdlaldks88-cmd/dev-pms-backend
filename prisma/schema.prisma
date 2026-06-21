@@ -124,11 +124,11 @@ enum ProjectRole {
 model Step {
   id        String   @id @default(uuid())
   name      String
-  order     Int      @default(0)
-  color     String   @default("#e2e8f0")
-  isDone    Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  order     Int        @default(0)
+  color     String     @default("#e2e8f0")
+  status    TaskStatus @default(TODO)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
 
   projectId String
   project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)

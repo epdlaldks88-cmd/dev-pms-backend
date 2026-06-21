@@ -1,4 +1,5 @@
-import { IsString, IsOptional, IsInt, IsBoolean, MaxLength } from 'class-validator';
+import { IsString, IsOptional, IsInt, IsEnum, MaxLength } from 'class-validator';
+import { TaskStatus } from '@prisma/client';
 
 export class CreateStepDto {
   @IsString()
@@ -14,6 +15,6 @@ export class CreateStepDto {
   color?: string;
 
   @IsOptional()
-  @IsBoolean()
-  isDone?: boolean;
+  @IsEnum(TaskStatus)
+  status?: TaskStatus;
 }

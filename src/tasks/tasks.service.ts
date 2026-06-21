@@ -160,13 +160,20 @@ export class TasksService {
   async create(projectId: string, userId: string, dto: CreateTaskDto) {
     const { assigneeIds, labelIds, personnelIds, ...raw } = dto;
 
+    // 단계(컬럼)에 생성되면 그 컬럼의 status를 상속, 아니면 dto.status(없으면 기본 TODO)
+    let status = raw.status;
+    if (raw.stepId) {
+      const step = await this.prisma.step.findUnique({ where: { id: raw.stepId }, select: { status: true } });
+      if (step) status = step.status;
+    }
+
     const task = await this.prisma.task.create({
       data: {
         title: raw.title,
         description: raw.description || undefined,
         requester: raw.requester || undefined,
         priority: raw.priority,
-        status: raw.status,
+        status,
         stepId: raw.stepId || undefined,
         startDate: raw.startDate ? new Date(raw.startDate) : undefined,
         dueDate: raw.dueDate ? new Date(raw.dueDate) : undefined,
@@ -231,6 +238,12 @@ export class TasksService {
 
     const { assigneeIds, labelIds, personnelIds, startDate, dueDate, ...data } = dto;
 
+    // 단계(컬럼)를 바꾸면 그 단계의 status를 자동 적용 (단계가 진행 상태의 단일 기준)
+    if (data.stepId && data.stepId !== existing.stepId) {
+      const step = await this.prisma.step.findUnique({ where: { id: data.stepId }, select: { status: true } });
+      if (step) data.status = step.status;
+    }
+
     const task = await this.prisma.task.update({
       where: { id: taskId },
       data: {
@@ -280,15 +293,11 @@ export class TasksService {
   }
 
   async moveTask(taskId: string, userId: string, stepId: string | null, order: number) {
+    // 카드를 단계(컬럼)로 옮기면 그 컬럼에 매핑된 status를 그대로 따라간다
     let statusUpdate: { status?: import('@prisma/client').TaskStatus } = {};
     if (stepId) {
-      const step = await this.prisma.step.findUnique({ where: { id: stepId } });
-      if (step?.isDone) statusUpdate.status = 'DONE';
-      else {
-        const currentTask = await this.prisma.task.findUnique({ where: { id: taskId }, select: { status: true, stepId: true } });
-        const prevStep = currentTask?.stepId ? await this.prisma.step.findUnique({ where: { id: currentTask.stepId } }) : null;
-        if (prevStep?.isDone && currentTask?.status === 'DONE') statusUpdate.status = 'IN_PROGRESS';
-      }
+      const step = await this.prisma.step.findUnique({ where: { id: stepId }, select: { status: true } });
+      if (step) statusUpdate.status = step.status;
     }
 
     const task = await this.prisma.task.update({
