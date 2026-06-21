@@ -41,7 +41,11 @@ const TASK_SELECT = {
     },
   },
   issues: {
-    select: { id: true, title: true, riskLevel: true, status: true },
+    select: {
+      id: true, title: true, description: true, riskLevel: true, status: true,
+      taskId: true,
+      assignee: { select: { id: true, name: true, avatar: true } },
+    },
     orderBy: { createdAt: 'asc' as const },
   },
   _count: { select: { comments: true, attachments: true, subTasks: true, issues: true } },
