@@ -84,6 +84,22 @@ export class UsersService {
     });
   }
 
+  async markOnline(id: string) {
+    await this.prisma.user.update({
+      where: { id },
+      data: { lastSeenAt: new Date() },
+    });
+  }
+
+  async getOnlineIds(): Promise<string[]> {
+    const threshold = new Date(Date.now() - 2 * 60 * 1000);
+    const users = await this.prisma.user.findMany({
+      where: { lastSeenAt: { gte: threshold } },
+      select: { id: true },
+    });
+    return users.map((u) => u.id);
+  }
+
   // backward compat
   async update(id: string, dto: UpdateProfileDto) {
     return this.updateProfile(id, dto);

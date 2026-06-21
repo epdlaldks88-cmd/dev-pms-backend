@@ -16,6 +16,16 @@ export class UsersController {
     return this.usersService.findAll();
   }
 
+  @Get('online')
+  getOnlineIds() {
+    return this.usersService.getOnlineIds();
+  }
+
+  @Post('me/ping')
+  ping(@Req() req: any) {
+    return this.usersService.markOnline(req.user.id);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.usersService.findOne(id);
