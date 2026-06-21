@@ -84,6 +84,27 @@ export class UsersService {
     });
   }
 
+  async getPendingUsers() {
+    return this.prisma.user.findMany({
+      where: { status: 'PENDING' },
+      select: { ...USER_SELECT, status: true },
+      orderBy: { createdAt: 'asc' },
+    });
+  }
+
+  async approveUser(id: string) {
+    return this.prisma.user.update({
+      where: { id },
+      data: { status: 'ACTIVE' },
+      select: USER_SELECT,
+    });
+  }
+
+  async rejectUser(id: string) {
+    await this.prisma.user.delete({ where: { id } });
+    return { ok: true };
+  }
+
   async markOnline(id: string) {
     await this.prisma.user.update({
       where: { id },
