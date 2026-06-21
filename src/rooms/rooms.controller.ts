@@ -1,11 +1,13 @@
-import { Controller, Get, Post, Patch, Delete, Body, Param, Req, UseGuards, Sse, Query } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, Param, Req, UseGuards, Sse } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { Observable } from 'rxjs';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { UserOrIpThrottlerGuard } from '../common/user-or-ip-throttler.guard';
 import { RoomsService } from './rooms.service';
 import { RoomsSseService } from './rooms-sse.service';
 import { PrismaService } from '../prisma/prisma.service';
 
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, UserOrIpThrottlerGuard)
 @Controller('rooms')
 export class RoomsController {
   constructor(
@@ -33,6 +35,7 @@ export class RoomsController {
   }
 
   // 메시지 전송
+  @Throttle({ default: { limit: 30, ttl: 60000 } }) // 분당 30건
   @Post(':roomId/messages')
   async send(@Param('roomId') roomId: string, @Req() req: any, @Body('content') content: string) {
     const msg = await this.roomsService.send(roomId, req.user.id, content);
@@ -64,16 +67,11 @@ export class RoomsController {
   }
 
   // SSE — 내가 속한 룸들의 실시간 이벤트
+  // 컨트롤러의 JwtAuthGuard가 적용됨(JWT 전략이 ?token= 쿼리도 서명 검증 후 처리).
+  // 과거엔 서명 검증 없이 토큰 payload를 신뢰해 위조 토큰으로 타인 룸 구독이 가능했음 → 제거.
   @Sse('events')
-  @UseGuards()
-  async events(@Req() req: any, @Query('token') token: string): Promise<Observable<any>> {
-    let userId = req.user?.id;
-    if (!userId && token) {
-      try {
-        const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
-        userId = payload.sub;
-      } catch {}
-    }
+  async events(@Req() req: any): Promise<Observable<any>> {
+    const userId = req.user.id;
     const members = await this.prisma.roomMember.findMany({
       where: { userId },
       select: { roomId: true },

@@ -1,11 +1,16 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+
+  // nginx 뒤에 있으므로 X-Forwarded-For를 신뢰해 req.ip가 실제 클라이언트 IP가 되게 함
+  // (rate limit이 nginx IP 하나로 뭉뚱그려지지 않도록)
+  app.set('trust proxy', 1);
 
   const isProd = process.env.NODE_ENV === 'production';
 
