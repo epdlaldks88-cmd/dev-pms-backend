@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { stripHtmlTags } from '../common/sanitize.util';
 
 const USER_MINI = { select: { id: true, name: true, avatar: true } };
 
@@ -62,8 +63,9 @@ export class RoomsService {
   // 메시지 전송
   async send(roomId: string, userId: string, content: string) {
     await this.assertMember(roomId, userId);
+    const clean = stripHtmlTags(content);
     const msg = await this.prisma.roomMessage.create({
-      data: { roomId, senderId: userId, content },
+      data: { roomId, senderId: userId, content: clean },
       include: { sender: USER_MINI },
     });
     // updatedAt 갱신

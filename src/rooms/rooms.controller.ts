@@ -43,7 +43,7 @@ export class RoomsController {
       roomId,
       senderId: req.user.id,
       senderName: msg.sender.name,
-      content,
+      content: msg.content, // 저장된 sanitized 내용으로 전파
     });
     return msg;
   }
