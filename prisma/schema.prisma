@@ -160,6 +160,7 @@ model Task {
   activityLogs ActivityLog[]
   personnel    TaskPersonnel[]
   workLogs     WorkLog[]
+  issues       Issue[]
 }
 
 // ─── Partner (파트너사) & Personnel (인력) ──────────────────────────────────────
@@ -420,6 +421,8 @@ model Issue {
   createdBy   User          @relation("IssueCreator", fields: [createdById], references: [id])
   assigneeId  String?
   assignee    User?         @relation("IssueAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  taskId      String?
+  task        Task?         @relation(fields: [taskId], references: [id], onDelete: SetNull)
 }
 
 enum IssueRisk {

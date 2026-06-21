@@ -25,6 +25,12 @@ export class CreateIssueDto {
   @IsUUID()
   @Transform(({ value }) => value || undefined)
   assigneeId?: string;
+
+  @IsOptional()
+  @ValidateIf((o) => o.taskId != null && o.taskId !== '')
+  @IsUUID()
+  @Transform(({ value }) => value || undefined)
+  taskId?: string;
 }
 
 export class UpdateIssueDto {
@@ -50,4 +56,10 @@ export class UpdateIssueDto {
   @IsUUID()
   @Transform(({ value }) => value || undefined)
   assigneeId?: string | null;
+
+  @IsOptional()
+  @ValidateIf((o) => o.taskId != null && o.taskId !== '')
+  @IsUUID()
+  @Transform(({ value }) => value || undefined)
+  taskId?: string | null;
 }

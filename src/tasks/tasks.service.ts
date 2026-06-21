@@ -40,7 +40,7 @@ const TASK_SELECT = {
       },
     },
   },
-  _count: { select: { comments: true, attachments: true, subTasks: true } },
+  _count: { select: { comments: true, attachments: true, subTasks: true, issues: true } },
 };
 
 @Injectable()
