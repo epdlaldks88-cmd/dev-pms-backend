@@ -22,6 +22,8 @@ import { SearchModule } from './search/search.module';
 import { MessagesModule } from './messages/messages.module';
 import { CanvasModule } from './canvas/canvas.module';
 import { SheetsModule } from './sheets/sheets.module';
+import { FirebaseModule } from './firebase/firebase.module';
+import { DeviceTokensModule } from './device-tokens/device-tokens.module';
 
 @Module({
   imports: [
@@ -50,6 +52,8 @@ import { SheetsModule } from './sheets/sheets.module';
     MessagesModule,
     CanvasModule,
     SheetsModule,
+    FirebaseModule,
+    DeviceTokensModule,
   ],
 })
 export class AppModule {}

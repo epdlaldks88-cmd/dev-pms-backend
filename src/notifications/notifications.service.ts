@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationType } from '@prisma/client';
+import { FirebaseService } from '../firebase/firebase.service';
+import { DeviceTokensService } from '../device-tokens/device-tokens.service';
 
 interface CreateNotificationDto {
   userId: string;
@@ -12,10 +14,32 @@ interface CreateNotificationDto {
 
 @Injectable()
 export class NotificationsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private firebaseService: FirebaseService,
+    private deviceTokensService: DeviceTokensService,
+  ) {}
 
   async create(dto: CreateNotificationDto) {
-    return this.prisma.notification.create({ data: dto });
+    // 1. DB에 알림 저장 (기존 로직 유지)
+    const notification = await this.prisma.notification.create({ data: dto });
+
+    // 2. FCM 푸시 발송 (앱이 백그라운드/종료 상태일 때 수신)
+    const tokens = await this.deviceTokensService.getTokensByUserId(dto.userId);
+    if (tokens.length > 0) {
+      await this.firebaseService.sendPushToMultiple(
+        tokens,
+        dto.title,
+        dto.message,
+        {
+          type: dto.type,
+          link: dto.link || '',
+          notificationId: notification.id,
+        },
+      );
+    }
+
+    return notification;
   }
 
   async findAll(userId: string) {
