@@ -74,7 +74,7 @@ export class QAService {
     const updateMap = {
       confirm: { status: 'COMPLETED' as const, result: 'PASS' as const },
       reject:  { status: 'COMPLETED' as const, result: 'REJECTED' as const },
-      cancel:  { status: 'CANCELLED' as const, result: null },
+      cancel:  { status: 'CANCELLED' as const },
     };
 
     return this.prisma.qATest.update({
