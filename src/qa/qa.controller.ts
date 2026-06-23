@@ -23,6 +23,26 @@ export class QAController {
     return this.qaService.create(dto);
   }
 
+  @Patch(':id/accept')
+  accept(@Param('id') id: string) {
+    return this.qaService.accept(id);
+  }
+
+  @Patch(':id/confirm')
+  confirm(@Param('id') id: string) {
+    return this.qaService.changeStatus(id, 'confirm');
+  }
+
+  @Patch(':id/reject')
+  reject(@Param('id') id: string) {
+    return this.qaService.changeStatus(id, 'reject');
+  }
+
+  @Patch(':id/cancel')
+  cancel(@Param('id') id: string) {
+    return this.qaService.changeStatus(id, 'cancel');
+  }
+
   @Patch(':id')
   update(@Param('id') id: string, @Body() dto: UpdateQATestDto) {
     return this.qaService.update(id, dto);

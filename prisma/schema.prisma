@@ -405,7 +405,7 @@ model WorkLog {
 
 model QATest {
   id        String       @id @default(uuid())
-  qaNumber  String       @unique
+  qaNumber  String?      @unique
   srNumber  String
   title     String
   content   String?
@@ -430,7 +430,7 @@ enum QATestStatus {
 enum QATestResult {
   PASS
   FAIL
-  SKIP
+  REJECTED
 }
 
 // ─── Notice (공지사항) ────────────────────────────────────────────────────────
