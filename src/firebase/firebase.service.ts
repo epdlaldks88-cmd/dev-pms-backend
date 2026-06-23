@@ -1,8 +1,6 @@
 import { Injectable, OnModuleInit, Logger } from '@nestjs/common';
 import { initializeApp, getApps, cert, App } from 'firebase-admin/app';
 import { getMessaging } from 'firebase-admin/messaging';
-import * as fs from 'fs';
-import * as path from 'path';
 
 @Injectable()
 export class FirebaseService implements OnModuleInit {
@@ -10,28 +8,27 @@ export class FirebaseService implements OnModuleInit {
   private app: App;
 
   onModuleInit() {
-    const serviceAccountPath = path.resolve(
-      process.env.FIREBASE_SERVICE_ACCOUNT_PATH ||
-        'src/firebase-service-account.json',
-    );
+    try {
+      if (!getApps().length) {
+        const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
 
-    if (!fs.existsSync(serviceAccountPath)) {
-      this.logger.error(
-        `Firebase 서비스 계정 파일을 찾을 수 없습니다: ${serviceAccountPath}`,
-      );
-      return;
-    }
+        if (!serviceAccountJson) {
+          this.logger.error(
+            'FIREBASE_SERVICE_ACCOUNT_JSON 환경변수가 없습니다',
+          );
+          return;
+        }
 
-    if (!getApps().length) {
-      const serviceAccount = JSON.parse(
-        fs.readFileSync(serviceAccountPath, 'utf8'),
-      );
-      this.app = initializeApp({
-        credential: cert(serviceAccount),
-      });
-      this.logger.log('Firebase Admin SDK 초기화 완료');
-    } else {
-      this.app = getApps()[0];
+        const serviceAccount = JSON.parse(serviceAccountJson);
+        this.app = initializeApp({
+          credential: cert(serviceAccount),
+        });
+        this.logger.log('Firebase Admin SDK 초기화 완료');
+      } else {
+        this.app = getApps()[0];
+      }
+    } catch (error) {
+      this.logger.error(`Firebase 초기화 실패: ${error.message}`);
     }
   }
 
