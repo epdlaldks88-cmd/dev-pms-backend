@@ -1,17 +1,4 @@
-import { IsString, IsOptional, IsEnum, IsUUID } from 'class-validator';
-
-export enum QATestStatus {
-  PENDING = 'PENDING',
-  IN_PROGRESS = 'IN_PROGRESS',
-  COMPLETED = 'COMPLETED',
-  CANCELLED = 'CANCELLED',
-}
-
-export enum QATestResult {
-  PASS = 'PASS',
-  FAIL = 'FAIL',
-  SKIP = 'SKIP',
-}
+import { IsString, IsOptional, IsUUID } from 'class-validator';
 
 export class CreateQATestDto {
   @IsString()
@@ -27,10 +14,6 @@ export class CreateQATestDto {
   @IsOptional()
   @IsString()
   tester?: string;
-
-  @IsOptional()
-  @IsDateString()
-  testDate?: string;
 
   @IsOptional()
   @IsUUID()

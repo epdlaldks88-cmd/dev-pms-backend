@@ -46,7 +46,6 @@ export class QAService {
         title: dto.title,
         content: dto.content,
         tester: dto.tester,
-        testDate: dto.testDate ? new Date(dto.testDate) : undefined,
         workLogId: dto.workLogId,
         status: 'PENDING',
       },
@@ -87,8 +86,9 @@ export class QAService {
     return this.prisma.qATest.update({
       where: { id },
       data: {
-        ...dto,
-        testDate: dto.testDate ? new Date(dto.testDate) : undefined,
+        ...(dto.title !== undefined && { title: dto.title }),
+        ...(dto.content !== undefined && { content: dto.content }),
+        ...(dto.tester !== undefined && { tester: dto.tester }),
       },
     });
   }
