@@ -376,6 +376,7 @@ model WorkLog {
   id          String        @id @default(uuid())
   description String?
   requester   String?
+  requestDate DateTime?
   hours       Float         @default(0)
   workDate    DateTime      @default(now())
   startDate   DateTime?

@@ -31,6 +31,10 @@ export class CreateWorkLogDto {
 
   @IsOptional()
   @IsDateString()
+  requestDate?: string;
+
+  @IsOptional()
+  @IsDateString()
   workDate?: string;
 
   @IsOptional()
@@ -55,6 +59,10 @@ export class UpdateWorkLogDto {
   @IsOptional()
   @IsString()
   requester?: string;
+
+  @IsOptional()
+  @IsDateString()
+  requestDate?: string;
 
   @IsOptional()
   @IsDateString()
