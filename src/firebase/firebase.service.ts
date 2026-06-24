@@ -1,15 +1,13 @@
 import { Injectable, OnModuleInit, Logger } from '@nestjs/common';
-import { initializeApp, getApps, cert, App } from 'firebase-admin/app';
-import { getMessaging } from 'firebase-admin/messaging';
+import { credential, apps, initializeApp, messaging } from 'firebase-admin';
 
 @Injectable()
 export class FirebaseService implements OnModuleInit {
   private readonly logger = new Logger(FirebaseService.name);
-  private app: App;
 
   onModuleInit() {
     try {
-      if (!getApps().length) {
+      if (!apps.length) {
         const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
 
         if (!serviceAccountJson) {
@@ -20,12 +18,10 @@ export class FirebaseService implements OnModuleInit {
         }
 
         const serviceAccount = JSON.parse(serviceAccountJson);
-        this.app = initializeApp({
-          credential: cert(serviceAccount),
+        initializeApp({
+          credential: credential.cert(serviceAccount),
         });
         this.logger.log('Firebase Admin SDK 초기화 완료');
-      } else {
-        this.app = getApps()[0];
       }
     } catch (error) {
       this.logger.error(`Firebase 초기화 실패: ${error.message}`);
@@ -39,7 +35,7 @@ export class FirebaseService implements OnModuleInit {
     data?: Record<string, string>,
   ): Promise<boolean> {
     try {
-      await getMessaging(this.app).send({
+      await messaging().send({
         token: fcmToken,
         notification: { title, body },
         data: data || {},
