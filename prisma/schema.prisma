@@ -416,8 +416,9 @@ model QATest {
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
 
-  workLogId String?
-  workLog   WorkLog? @relation(fields: [workLogId], references: [id], onDelete: SetNull)
+  workLogId      String?
+  workLogDeleted Boolean  @default(false)
+  workLog        WorkLog? @relation(fields: [workLogId], references: [id], onDelete: SetNull)
 }
 
 enum QATestStatus {

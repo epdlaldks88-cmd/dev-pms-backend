@@ -202,6 +202,11 @@ export class WorkLogsService {
   }
 
   async resetAll() {
+    // 일감 삭제 전, 연결된 QA에 "삭제된 일감" 플래그 표시
+    await this.prisma.qATest.updateMany({
+      where: { workLogId: { not: null } },
+      data: { workLogDeleted: true },
+    });
     await this.prisma.workLog.deleteMany({});
     return { message: '일감 전체 초기화 완료. SR 시퀀스도 리셋되었습니다.' };
   }
@@ -213,6 +218,11 @@ export class WorkLogsService {
         throw new ForbiddenException('일감 삭제는 담당자 또는 관리자만 가능합니다.');
       }
     }
+    // 일감 삭제 전, 연결된 QA에 "삭제된 일감" 플래그 표시 (FK는 SetNull로 끊김)
+    await this.prisma.qATest.updateMany({
+      where: { workLogId: id },
+      data: { workLogDeleted: true },
+    });
     await this.prisma.workLog.delete({ where: { id } });
     return { message: '일감이 삭제되었습니다.' };
   }
