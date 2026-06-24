@@ -411,9 +411,11 @@ model QATest {
   content   String?
   status    QATestStatus @default(PENDING)
   result    QATestResult?
-  tester    String?
-  testDate  DateTime?
-  createdAt DateTime     @default(now())
+  tester      String?
+  testDate    DateTime?
+  acceptedAt  DateTime?
+  completedAt DateTime?
+  createdAt   DateTime     @default(now())
   updatedAt DateTime     @updatedAt
 
   workLogId      String?

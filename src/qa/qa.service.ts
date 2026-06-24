@@ -64,7 +64,7 @@ export class QAService {
     const qaNumber = await this.generateQANumber();
     return this.prisma.qATest.update({
       where: { id },
-      data: { qaNumber, status: 'IN_PROGRESS' },
+      data: { qaNumber, status: 'IN_PROGRESS', acceptedAt: new Date() },
     });
   }
 
@@ -74,10 +74,10 @@ export class QAService {
     if (!qa) throw new NotFoundException('QA 테스트를 찾을 수 없습니다.');
 
     const data: any = {};
-    if (action === 'confirm') { data.status = 'COMPLETED'; data.result = 'PASS'; }
-    else if (action === 'reject') { data.status = 'COMPLETED'; data.result = 'REJECTED'; }
+    if (action === 'confirm') { data.status = 'COMPLETED'; data.result = 'PASS'; data.completedAt = new Date(); }
+    else if (action === 'reject') { data.status = 'COMPLETED'; data.result = 'REJECTED'; data.completedAt = new Date(); }
     else if (action === 'cancel') { data.status = 'CANCELLED'; }
-    else if (action === 'reopen') { data.status = 'IN_PROGRESS'; data.result = null; }
+    else if (action === 'reopen') { data.status = 'IN_PROGRESS'; data.result = null; data.completedAt = null; }
 
     return this.prisma.qATest.update({ where: { id }, data });
   }
