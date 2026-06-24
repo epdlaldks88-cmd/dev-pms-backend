@@ -12,16 +12,27 @@ export class FirebaseService implements OnModuleInit {
   onModuleInit() {
     try {
       if (!getApps().length) {
-        const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+        let serviceAccount: any;
 
-        if (!serviceAccountJson) {
-          this.logger.error(
-            'FIREBASE_SERVICE_ACCOUNT_JSON 환경변수가 없습니다',
-          );
+        const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+        const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH;
+
+        if (serviceAccountJson) {
+          serviceAccount = JSON.parse(serviceAccountJson);
+        } else if (serviceAccountPath) {
+          const fs = require('fs');
+          const path = require('path');
+          const fullPath = path.resolve(serviceAccountPath);
+          if (fs.existsSync(fullPath)) {
+            serviceAccount = JSON.parse(fs.readFileSync(fullPath, 'utf8'));
+          }
+        }
+
+        if (!serviceAccount) {
+          this.logger.error('Firebase 서비스 계정 설정이 없습니다');
           return;
         }
 
-        const serviceAccount = JSON.parse(serviceAccountJson);
         initializeApp({
           credential: cert(serviceAccount),
         });
