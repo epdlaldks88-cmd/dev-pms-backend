@@ -249,7 +249,7 @@ export class TasksService {
     userId: string,
     rows: Array<{
       category: string;
-      title: string;
+      title?: string;
       description?: string;
       assigneeName?: string;
       priority?: string;
@@ -257,10 +257,10 @@ export class TasksService {
       dueDate?: string;
     }>,
   ) {
-    // 유효한 행만 (업무구분 + 제목 필수)
-    const valid = rows.filter((r) => r.category?.trim() && r.title?.trim());
+    // 업무구분(category)만 필수, 요구사항(title)은 선택
+    const valid = rows.filter((r) => r.category?.trim());
     if (valid.length === 0) {
-      throw new NotFoundException('등록할 유효한 데이터가 없습니다. (업무구분/제목 필수)');
+      throw new NotFoundException('등록할 유효한 데이터가 없습니다. (업무구분 필수)');
     }
 
     // 첫 번째 컬럼(Step) — 상위/하위 모두 여기로
@@ -325,13 +325,13 @@ export class TasksService {
           parentCount++;
         }
 
-        const children = grouped.get(cat)!;
+        const children = grouped.get(cat)!.filter((r) => r.title?.trim());
         for (let i = 0; i < children.length; i++) {
           const r = children[i];
           const assigneeId = r.assigneeName ? nameToUserId.get(r.assigneeName.trim()) : undefined;
           await tx.task.create({
             data: {
-              title: r.title.trim(),
+              title: r.title!.trim(),
               description: r.description?.trim() || undefined,
               priority: normPriority(r.priority) as any,
               status: firstStep?.status ?? 'TODO',
