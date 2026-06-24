@@ -85,6 +85,8 @@ export class TasksService {
         where: { projectId, parentId: null },
         select: {
           ...TASK_SELECT,
+          // 카드에 표기할 워크로드(일감) 통계용
+          workLogs: { select: { stage: true } },
           subTasks: {
             select: TASK_SELECT,
             orderBy: [{ order: 'asc' }, { createdAt: 'asc' }],
@@ -94,10 +96,22 @@ export class TasksService {
       }),
     ]);
 
+    // 완료 이상 단계 = COMPLETED, USER_CONFIRMED, DEPLOYED
+    const COMPLETED_STAGES = ['COMPLETED', 'USER_CONFIRMED', 'DEPLOYED'];
+    const now = new Date();
+    const withStats = tasks.map((t) => {
+      const { workLogs, ...rest } = t as any;
+      const total = workLogs.length;
+      const completed = workLogs.filter((w: any) => COMPLETED_STAGES.includes(w.stage)).length;
+      // 지연: 태스크 마감일이 지났는데 완료 이상이 아닌 일감이 남아있음
+      const overdue = !!rest.dueDate && new Date(rest.dueDate) < now && completed < total;
+      return { ...rest, workLogStats: { total, completed, overdue } };
+    });
+
     return steps.map((step, idx) => ({
       ...step,
       // 단계 미지정(orphan) 태스크는 첫 컬럼에 함께 표시
-      tasks: tasks.filter((t) => t.stepId === step.id || (idx === 0 && !t.stepId)),
+      tasks: withStats.filter((t) => t.stepId === step.id || (idx === 0 && !t.stepId)),
     }));
   }
 
