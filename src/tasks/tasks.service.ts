@@ -60,8 +60,9 @@ export class TasksService {
     private notifications: NotificationsService,
   ) {}
 
-  async findAll(projectId: string, query?: { stepId?: string; status?: string; priority?: string; assigneeId?: string }) {
-    const where: any = { projectId, parentId: null };
+  async findAll(projectId: string, query?: { stepId?: string; status?: string; priority?: string; assigneeId?: string; includeSubtasks?: string }) {
+    const where: any = { projectId };
+    if (!query?.includeSubtasks) where.parentId = null;
     if (query?.stepId) where.stepId = query.stepId;
     if (query?.status) where.status = query.status;
     if (query?.priority) where.priority = query.priority;
