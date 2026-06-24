@@ -18,15 +18,19 @@ jobs:
           key: ${{ secrets.NCP_SSH_KEY }}
           script: |
             set -e
-            echo "▶ Pulling frontend (dev-pms)..."
-            cd ~/dev-pms && git pull origin main
-            echo "▶ Pulling backend (dev-pms-backend)..."
-            cd ~/dev-pms-backend && git pull origin main
-            echo "▶ Rebuilding & restarting containers..."
-            # 잔존 컨테이너 강제 제거 (데이터는 볼륨에 보존되어 안전)
-            docker stop dev-pms-backend-db-1 dev-pms-backend-backend-1 dev-pms-backend-web-1 2>/dev/null || true
-            docker rm -f dev-pms-backend-db-1 dev-pms-backend-backend-1 dev-pms-backend-web-1 2>/dev/null || true
-            docker compose -f docker-compose.prod.yml up -d --build --remove-orphans --force-recreate
-            echo "▶ Cleaning up old images..."
-            docker image prune -f
-            echo "✅ Deploy done."
+            # 프론트/백엔드 저장소 동시 push 시 배포 레이스를 막기 위해 서버 단일 락으로 직렬화
+            (
+              flock -w 600 200 || { echo "deploy lock timeout"; exit 1; }
+              echo "▶ Pulling frontend (dev-pms)..."
+              cd ~/dev-pms && git pull origin main
+              echo "▶ Pulling backend (dev-pms-backend)..."
+              cd ~/dev-pms-backend && git pull origin main
+              echo "▶ Rebuilding & restarting containers..."
+              # 잔존 컨테이너 강제 제거 (데이터는 볼륨에 보존되어 안전)
+              docker stop dev-pms-backend-db-1 dev-pms-backend-backend-1 dev-pms-backend-web-1 2>/dev/null || true
+              docker rm -f dev-pms-backend-db-1 dev-pms-backend-backend-1 dev-pms-backend-web-1 2>/dev/null || true
+              docker compose -f docker-compose.prod.yml up -d --build --remove-orphans --force-recreate
+              echo "▶ Cleaning up old images..."
+              docker image prune -f
+              echo "✅ Deploy done."
+            ) 200>/tmp/dev-pms-deploy.lock
