@@ -22,6 +22,12 @@ export class CreateTaskDto {
   requester?: string;
 
   @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  @Transform(({ value }) => value || undefined)
+  part?: string;
+
+  @IsOptional()
   @IsEnum(Priority)
   priority?: Priority;
 

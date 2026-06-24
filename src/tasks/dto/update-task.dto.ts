@@ -2,6 +2,8 @@ import {
   IsString, IsOptional, IsDateString,
   MaxLength, IsEnum, IsArray, IsUUID, IsInt, ValidateIf,
 } from 'class-validator';
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+import { Transform } from 'class-transformer';
 import { Transform } from 'class-transformer';
 import { Priority, TaskStatus } from '@prisma/client';
 
@@ -14,6 +16,11 @@ export class UpdateTaskDto {
   @IsOptional()
   @IsString()
   description?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  part?: string;
 
   @IsOptional()
   @IsEnum(Priority)

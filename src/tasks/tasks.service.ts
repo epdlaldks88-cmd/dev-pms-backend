@@ -10,6 +10,7 @@ const TASK_SELECT = {
   title: true,
   description: true,
   requester: true,
+  part: true,
   priority: true,
   status: true,
   startDate: true,
@@ -255,6 +256,7 @@ export class TasksService {
       priority?: string;
       startDate?: string;
       dueDate?: string;
+      part?: string;
     }>,
   ) {
     // 업무구분(category)만 필수, 요구사항(title)은 선택
@@ -311,9 +313,11 @@ export class TasksService {
       for (const cat of categories) {  // 대량(162행+) 대비 타임아웃 여유 부여 (아래 옵션)
         let parentId = titleToParentId.get(cat);
         if (!parentId) {
+          const firstRow = grouped.get(cat)![0];
           const parent = await tx.task.create({
             data: {
               title: cat,
+              part: firstRow?.part?.trim() || undefined,
               projectId,
               createdById: userId,
               stepId: firstStep?.id,

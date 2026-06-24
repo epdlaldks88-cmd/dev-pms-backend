@@ -143,6 +143,7 @@ model Task {
   title       String
   description String?
   requester   String?
+  part        String?
   priority    Priority   @default(MEDIUM)
   status      TaskStatus @default(TODO)
   startDate   DateTime?
