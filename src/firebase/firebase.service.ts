@@ -8,7 +8,7 @@ export class FirebaseService implements OnModuleInit {
 
   onModuleInit() {
     try {
-      if (!admin.apps.length) {
+      if (!admin.apps || !admin.apps.length) {
         const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
 
         if (!serviceAccountJson) {
