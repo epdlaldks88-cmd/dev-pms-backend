@@ -68,21 +68,18 @@ export class QAService {
     });
   }
 
-  // 확인(PASS) / 반려(REJECTED) / 취소(CANCELLED)
-  async changeStatus(id: string, action: 'confirm' | 'reject' | 'cancel') {
+  // 확인(PASS) / 반려(REJECTED) / 취소(CANCELLED) / 되돌리기(reopen → IN_PROGRESS)
+  async changeStatus(id: string, action: 'confirm' | 'reject' | 'cancel' | 'reopen') {
     const qa = await this.prisma.qATest.findUnique({ where: { id } });
     if (!qa) throw new NotFoundException('QA 테스트를 찾을 수 없습니다.');
 
-    const updateMap = {
-      confirm: { status: 'COMPLETED' as const, result: 'PASS' as const },
-      reject:  { status: 'COMPLETED' as const, result: 'REJECTED' as const },
-      cancel:  { status: 'CANCELLED' as const },
-    };
+    const data: any = {};
+    if (action === 'confirm') { data.status = 'COMPLETED'; data.result = 'PASS'; }
+    else if (action === 'reject') { data.status = 'COMPLETED'; data.result = 'REJECTED'; }
+    else if (action === 'cancel') { data.status = 'CANCELLED'; }
+    else if (action === 'reopen') { data.status = 'IN_PROGRESS'; data.result = null; }
 
-    return this.prisma.qATest.update({
-      where: { id },
-      data: updateMap[action],
-    });
+    return this.prisma.qATest.update({ where: { id }, data });
   }
 
   async update(id: string, dto: UpdateQATestDto) {

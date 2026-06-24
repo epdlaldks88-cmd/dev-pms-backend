@@ -43,6 +43,11 @@ export class QAController {
     return this.qaService.changeStatus(id, 'cancel');
   }
 
+  @Patch(':id/reopen')
+  reopen(@Param('id') id: string) {
+    return this.qaService.changeStatus(id, 'reopen');
+  }
+
   @Patch(':id')
   update(@Param('id') id: string, @Body() dto: UpdateQATestDto) {
     return this.qaService.update(id, dto);
