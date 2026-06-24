@@ -2,6 +2,7 @@ import {
   IsString, IsOptional, IsDateString,
   MaxLength, IsEnum, IsArray, IsUUID, IsInt, ValidateIf,
 } from 'class-validator';
+import { Transform } from 'class-transformer';
 import { Priority, TaskStatus } from '@prisma/client';
 
 export class UpdateTaskDto {
@@ -15,9 +16,11 @@ export class UpdateTaskDto {
   description?: string;
 
   @IsOptional()
+  @Transform(({ value }) => (value === '' ? null : value))
+  @ValidateIf((o) => o.part !== null)
   @IsString()
   @MaxLength(100)
-  part?: string;
+  part?: string | null;
 
   @IsOptional()
   @IsEnum(Priority)
