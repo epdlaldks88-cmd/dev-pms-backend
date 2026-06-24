@@ -11,7 +11,7 @@ export class WorkLogsController {
   constructor(private workLogsService: WorkLogsService) {}
 
   @Get()
-  findAll(@Query() query: { userId?: string; projectId?: string; stage?: string; startDate?: string; endDate?: string }) {
+  findAll(@Query() query: { userId?: string; projectId?: string; taskId?: string; stage?: string; startDate?: string; endDate?: string }) {
     return this.workLogsService.findAll(query);
   }
 

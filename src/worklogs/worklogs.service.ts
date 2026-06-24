@@ -38,9 +38,10 @@ export class WorkLogsService {
     private notifications: NotificationsService,
   ) {}
 
-  findAll(query?: { userId?: string; projectId?: string; stage?: string; startDate?: string; endDate?: string }) {
+  findAll(query?: { userId?: string; projectId?: string; taskId?: string; stage?: string; startDate?: string; endDate?: string }) {
     const where: any = {};
     if (query?.userId) where.userId = query.userId;
+    if (query?.taskId) where.taskId = query.taskId;
     if (query?.stage) where.stage = query.stage;
     if (query?.startDate || query?.endDate) {
       where.OR = [
