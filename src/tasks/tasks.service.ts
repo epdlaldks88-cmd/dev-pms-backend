@@ -314,10 +314,13 @@ export class TasksService {
         let parentId = titleToParentId.get(cat);
         if (!parentId) {
           const firstRow = grouped.get(cat)![0];
+          // 서브태스크 없는 행(title 없는 행)에 description이 있으면 상위 태스크에 적용
+          const parentDescRow = grouped.get(cat)!.find((r) => !r.title?.trim() && r.description?.trim());
           const parent = await tx.task.create({
             data: {
               title: cat,
               part: firstRow?.part?.trim() || undefined,
+              description: parentDescRow?.description?.trim() || undefined,
               projectId,
               createdById: userId,
               stepId: firstStep?.id,
