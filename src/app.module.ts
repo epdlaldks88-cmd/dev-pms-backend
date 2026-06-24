@@ -24,6 +24,7 @@ import { SheetsModule } from './sheets/sheets.module';
 import { TemplatesModule } from './templates/templates.module';
 import { RoomsModule } from './rooms/rooms.module';
 import { QAModule } from './qa/qa.module';
+import { WbsModule } from './wbs/wbs.module';
 
 @Module({
   imports: [
@@ -55,6 +56,7 @@ import { QAModule } from './qa/qa.module';
     TemplatesModule,
     RoomsModule,
     QAModule,
+    WbsModule,
   ],
 })
 export class AppModule {}
