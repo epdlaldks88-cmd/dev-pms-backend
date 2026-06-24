@@ -40,7 +40,15 @@ export class StepsService {
   }
 
   async update(stepId: string, dto: Partial<CreateStepDto>) {
-    return this.prisma.step.update({ where: { id: stepId }, data: dto });
+    const step = await this.prisma.step.update({ where: { id: stepId }, data: dto });
+    // 컬럼 상태를 바꾸면 그 컬럼에 들어있는 태스크들의 status도 함께 맞춘다
+    if (dto.status) {
+      await this.prisma.task.updateMany({
+        where: { stepId },
+        data: { status: dto.status },
+      });
+    }
+    return step;
   }
 
   async reorder(projectId: string, orders: { id: string; order: number }[]) {

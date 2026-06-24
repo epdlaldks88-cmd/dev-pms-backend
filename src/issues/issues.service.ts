@@ -11,8 +11,10 @@ const ISSUE_SELECT = {
   createdAt: true,
   updatedAt: true,
   projectId: true,
+  taskId: true,
   createdBy: { select: { id: true, name: true, avatar: true } },
   assignee: { select: { id: true, name: true, avatar: true } },
+  task: { select: { id: true, title: true } },
 };
 
 @Injectable()
@@ -37,6 +39,7 @@ export class IssuesService {
         projectId,
         createdById: userId,
         assigneeId: dto.assigneeId ?? null,
+        taskId: dto.taskId ?? null,
       },
       select: ISSUE_SELECT,
     });
@@ -54,6 +57,7 @@ export class IssuesService {
         ...(dto.riskLevel !== undefined && { riskLevel: dto.riskLevel }),
         ...(dto.status !== undefined && { status: dto.status }),
         ...(dto.assigneeId !== undefined && { assigneeId: dto.assigneeId }),
+        ...(dto.taskId !== undefined && { taskId: dto.taskId }),
       },
       select: ISSUE_SELECT,
     });

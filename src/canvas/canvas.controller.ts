@@ -29,13 +29,13 @@ export class CanvasController {
   }
 
   @Put(':canvasId/rename')
-  rename(@Param('projectId') projectId: string, @Param('canvasId') canvasId: string, @Body('name') name: string) {
-    return this.svc.rename(projectId, canvasId, name);
+  rename(@Req() req: any, @Param('projectId') projectId: string, @Param('canvasId') canvasId: string, @Body('name') name: string) {
+    return this.svc.rename(projectId, canvasId, name, req.user.id, req.user.role);
   }
 
   @Delete(':canvasId')
-  remove(@Param('projectId') projectId: string, @Param('canvasId') canvasId: string) {
-    return this.svc.remove(projectId, canvasId);
+  remove(@Req() req: any, @Param('projectId') projectId: string, @Param('canvasId') canvasId: string) {
+    return this.svc.remove(projectId, canvasId, req.user.id, req.user.role);
   }
 
   // ── 댓글 ───────────────────────────────────────────

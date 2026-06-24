@@ -6,6 +6,8 @@ import { CreateWorkLogDto, UpdateWorkLogDto } from './dto/worklog.dto';
 const WORKLOG_SELECT = {
   id: true,
   description: true,
+  requester: true,
+  requestDate: true,
   hours: true,
   workDate: true,
   startDate: true,
@@ -17,6 +19,7 @@ const WORKLOG_SELECT = {
   createdAt: true,
   taskTitle: true,
   projectName: true,
+  srNumber: true,
   user: { select: { id: true, name: true, avatar: true } },
   task: {
     select: {
@@ -86,6 +89,20 @@ export class WorkLogsService {
     }));
   }
 
+  private async generateSrNumber(): Promise<string> {
+    const year = new Date().getFullYear().toString().slice(-2);
+    const prefix = `SR-${year}-`;
+    const last = await this.prisma.workLog.findFirst({
+      where: { srNumber: { startsWith: prefix } },
+      orderBy: { srNumber: 'desc' },
+      select: { srNumber: true },
+    });
+    const seq = last
+      ? String(parseInt(last.srNumber!.split('-')[2]) + 1).padStart(4, '0')
+      : '0001';
+    return `${prefix}${seq}`;
+  }
+
   async create(currentUserId: string, dto: CreateWorkLogDto) {
     let taskTitle: string | undefined;
     let projectName: string | undefined;
@@ -103,16 +120,20 @@ export class WorkLogsService {
 
     const assignedUserId = dto.userId || currentUserId;
     const isSelf = assignedUserId === currentUserId;
+    const srNumber = await this.generateSrNumber();
 
     const data: any = {
       userId: assignedUserId,
       hours: dto.hours ?? 0,
       description: dto.description,
+      requester: dto.requester || null,
+      requestDate: dto.requestDate ? new Date(dto.requestDate) : null,
       workDate: dto.startDate ? new Date(dto.startDate) : (dto.workDate ? new Date(dto.workDate) : new Date()),
       startDate: dto.startDate ? new Date(dto.startDate) : null,
       endDate: dto.endDate ? new Date(dto.endDate) : null,
       taskTitle: taskTitle ?? null,
       projectName: projectName ?? null,
+      srNumber,
       // 자기 자신에게 등록 시 자동 확인처리
       isAcknowledged: isSelf,
       acknowledgedAt: isSelf ? new Date() : null,
@@ -157,6 +178,8 @@ export class WorkLogsService {
       data: {
         ...(dto.hours !== undefined && { hours: dto.hours }),
         ...(dto.description !== undefined && { description: dto.description }),
+        ...(dto.requester !== undefined && { requester: dto.requester || null }),
+        ...(dto.requestDate !== undefined && { requestDate: dto.requestDate ? new Date(dto.requestDate) : null }),
         ...(dto.startDate !== undefined && { startDate: dto.startDate ? new Date(dto.startDate) : null }),
         ...(dto.endDate !== undefined && { endDate: dto.endDate ? new Date(dto.endDate) : null }),
         ...(dto.workDate !== undefined && { workDate: dto.workDate ? new Date(dto.workDate) : undefined }),
@@ -176,6 +199,11 @@ export class WorkLogsService {
       },
       select: WORKLOG_SELECT,
     });
+  }
+
+  async resetAll() {
+    await this.prisma.workLog.deleteMany({});
+    return { message: '일감 전체 초기화 완료. SR 시퀀스도 리셋되었습니다.' };
   }
 
   async remove(id: string, userId?: string, userRole?: string) {

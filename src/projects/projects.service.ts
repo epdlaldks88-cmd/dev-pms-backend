@@ -15,6 +15,7 @@ const PROJECT_SELECT = {
   status: true,
   startDate: true,
   endDate: true,
+  openDate: true,
   color: true,
   icon: true,
   createdAt: true,
@@ -47,6 +48,7 @@ export class ProjectsService {
         icon: dto.icon,
         startDate: dto.startDate ? new Date(dto.startDate) : undefined,
         endDate: dto.endDate ? new Date(dto.endDate) : undefined,
+        openDate: dto.openDate ? new Date(dto.openDate) : undefined,
         createdById: userId,
         members: { create: { userId, role: 'OWNER' } },
         steps: {
@@ -105,13 +107,14 @@ export class ProjectsService {
         throw new ForbiddenException('프로젝트 수정은 관리자 또는 프로젝트 오너/관리자만 가능합니다.');
       }
     }
-    const { startDate, endDate, ...rest } = dto;
+    const { startDate, endDate, openDate, ...rest } = dto;
     const project = await this.prisma.project.update({
       where: { id: projectId },
       data: {
         ...rest,
         ...(startDate !== undefined && { startDate: startDate ? new Date(startDate) : null }),
         ...(endDate !== undefined && { endDate: endDate ? new Date(endDate) : null }),
+        ...(openDate !== undefined && { openDate: openDate ? new Date(openDate) : null }),
       },
       select: PROJECT_SELECT,
     });
@@ -161,21 +164,23 @@ export class ProjectsService {
   }
 
   async getStats(projectId: string, _userId: string) {
+    // 칸반 보드는 부모 태스크(parentId: null)만 표시하므로 통계도 동일 기준으로 집계
     const [total, byStatus, byPriority, overdue] = await Promise.all([
-      this.prisma.task.count({ where: { projectId } }),
+      this.prisma.task.count({ where: { projectId, parentId: null } }),
       this.prisma.task.groupBy({
         by: ['status'],
-        where: { projectId },
+        where: { projectId, parentId: null },
         _count: true,
       }),
       this.prisma.task.groupBy({
         by: ['priority'],
-        where: { projectId },
+        where: { projectId, parentId: null },
         _count: true,
       }),
       this.prisma.task.count({
         where: {
           projectId,
+          parentId: null,
           dueDate: { lt: new Date() },
           status: { notIn: ['DONE', 'CANCELLED'] },
         },

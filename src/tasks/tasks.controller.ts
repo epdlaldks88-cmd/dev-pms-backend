@@ -40,6 +40,17 @@ export class TasksController {
     return this.tasksService.findGantt(projectId);
   }
 
+  @Patch('reorder')
+  async reorder(
+    @Param('projectId') projectId: string,
+    @Req() req: any,
+    @Body() body: { taskIds: string[] },
+  ) {
+    const result = await this.tasksService.reorderGantt(projectId, body.taskIds ?? []);
+    this.sseService.emit({ projectId, type: 'move', actorId: req.user.id });
+    return result;
+  }
+
   @Get(':taskId')
   findOne(@Param('taskId') taskId: string) {
     return this.tasksService.findOne(taskId);

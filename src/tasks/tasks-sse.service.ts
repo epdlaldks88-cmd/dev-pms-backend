@@ -16,9 +16,11 @@ export class TasksSseService {
     this.subject.next(event);
   }
 
-  stream(projectId: string, userId: string) {
+  stream(projectId: string, _userId: string) {
+    // actor를 제외하지 않음: 같은 사용자의 다른 뷰(칸반↔간트)도 실시간 동기화되도록.
+    // 원래 뷰는 낙관적 업데이트 후 재요청이라 중복 갱신돼도 무해함.
     return this.subject.pipe(
-      filter((e) => e.projectId === projectId && e.actorId !== userId),
+      filter((e) => e.projectId === projectId),
       map((e) => ({ data: { type: e.type } })),
     );
   }

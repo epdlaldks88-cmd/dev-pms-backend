@@ -1,5 +1,5 @@
 import {
-  Controller, Get, Post, Patch, Delete, Body, Param, Query, Req, UseGuards,
+  Controller, Get, Post, Patch, Delete, Body, Param, Query, Req, UseGuards, ForbiddenException,
 } from '@nestjs/common';
 import { WorkLogsService } from './worklogs.service';
 import { CreateWorkLogDto, UpdateWorkLogDto } from './dto/worklog.dto';
@@ -38,5 +38,11 @@ export class WorkLogsController {
   @Delete(':id')
   remove(@Param('id') id: string, @Req() req: any) {
     return this.workLogsService.remove(id, req.user.id, req.user.role);
+  }
+
+  @Delete()
+  resetAll(@Req() req: any) {
+    if (req.user.role !== 'ADMIN') throw new ForbiddenException('관리자만 초기화할 수 있습니다.');
+    return this.workLogsService.resetAll();
   }
 }

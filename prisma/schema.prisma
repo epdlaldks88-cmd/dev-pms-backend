@@ -18,6 +18,10 @@ model User {
   position   String?
   department String?
   phone      String?
+  statusEmoji String? @default("🟢")
+  statusText  String?
+  lastSeenAt  DateTime?
+  status      UserStatus @default(PENDING)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
@@ -41,13 +45,22 @@ model User {
   createdSheets   Sheet[]      @relation("SheetCreator")
   sentMessages     Message[]   @relation("MessageSender")
   receivedMessages Message[]   @relation("MessageRecipient")
-
   deviceTokens  DeviceToken[]
+  createdTemplates Template[]   @relation("TemplateCreator")
+  createdRooms     Room[]      @relation("RoomCreator")
+  roomMembers      RoomMember[]
+  roomMessages     RoomMessage[] @relation("RoomMessageSender")
 }
 
 enum Role {
   ADMIN
   MEMBER
+}
+
+enum UserStatus {
+  PENDING
+  ACTIVE
+  INACTIVE
 }
 
 // ─── Project ─────────────────────────────────────────────────────────────────
@@ -59,6 +72,7 @@ model Project {
   status      ProjectStatus @default(ACTIVE)
   startDate   DateTime?
   endDate     DateTime?
+  openDate    DateTime?
   color       String        @default("#6366f1")
   icon        String?
   createdAt   DateTime      @default(now())
@@ -111,11 +125,11 @@ enum ProjectRole {
 model Step {
   id        String   @id @default(uuid())
   name      String
-  order     Int      @default(0)
-  color     String   @default("#e2e8f0")
-  isDone    Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  order     Int        @default(0)
+  color     String     @default("#e2e8f0")
+  status    TaskStatus @default(TODO)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
 
   projectId String
   project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
@@ -129,6 +143,7 @@ model Task {
   id          String     @id @default(uuid())
   title       String
   description String?
+  requester   String?
   priority    Priority   @default(MEDIUM)
   status      TaskStatus @default(TODO)
   startDate   DateTime?
@@ -154,6 +169,7 @@ model Task {
   activityLogs ActivityLog[]
   personnel    TaskPersonnel[]
   workLogs     WorkLog[]
+  issues       Issue[]
 }
 
 // ─── Partner (파트너사) & Personnel (인력) ──────────────────────────────────────
@@ -209,6 +225,7 @@ enum TaskStatus {
   IN_PROGRESS
   IN_REVIEW
   DONE
+  ON_HOLD
   CANCELLED
 }
 
@@ -359,6 +376,8 @@ enum WorkLogStage {
 model WorkLog {
   id          String        @id @default(uuid())
   description String?
+  requester   String?
+  requestDate DateTime?
   hours       Float         @default(0)
   workDate    DateTime      @default(now())
   startDate   DateTime?
@@ -373,11 +392,46 @@ model WorkLog {
 
   taskTitle   String?
   projectName String?
+  srNumber    String?
 
   userId String
   user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   taskId String?
   task   Task?   @relation(fields: [taskId], references: [id], onDelete: SetNull)
+
+  qaTests QATest[]
+}
+
+// ─── QATest ──────────────────────────────────────────────────────────────────
+
+model QATest {
+  id        String       @id @default(uuid())
+  qaNumber  String?      @unique
+  srNumber  String
+  title     String
+  content   String?
+  status    QATestStatus @default(PENDING)
+  result    QATestResult?
+  tester    String?
+  testDate  DateTime?
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  workLogId String?
+  workLog   WorkLog? @relation(fields: [workLogId], references: [id], onDelete: SetNull)
+}
+
+enum QATestStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum QATestResult {
+  PASS
+  FAIL
+  REJECTED
 }
 
 // ─── Notice (공지사항) ────────────────────────────────────────────────────────
@@ -413,6 +467,8 @@ model Issue {
   createdBy   User          @relation("IssueCreator", fields: [createdById], references: [id])
   assigneeId  String?
   assignee    User?         @relation("IssueAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  taskId      String?
+  task        Task?         @relation(fields: [taskId], references: [id], onDelete: SetNull)
 }
 
 enum IssueRisk {
@@ -519,8 +575,6 @@ model Message {
   @@index([senderId, recipientId])
   @@index([recipientId, isRead])
 }
-
-
 // ─── DeviceToken (FCM 푸시 토큰) ─────────────────────────────────────────────
 
 model DeviceToken {
@@ -534,4 +588,73 @@ model DeviceToken {
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+// ─── Room (그룹채팅방) ────────────────────────────────────────────────────────
+
+model Room {
+  id        String   @id @default(uuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  createdById String
+  createdBy   User          @relation("RoomCreator", fields: [createdById], references: [id])
+  members     RoomMember[]
+  messages    RoomMessage[]
+}
+
+model RoomMember {
+  joinedAt DateTime @default(now())
+
+  roomId String
+  room   Room   @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([roomId, userId])
+}
+
+model RoomMessage {
+  id        String   @id @default(uuid())
+  content   String
+  createdAt DateTime @default(now())
+
+  roomId   String
+  room     Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  senderId String
+  sender   User @relation("RoomMessageSender", fields: [senderId], references: [id])
+}
+
+// ─── Template (프로젝트 단계별 템플릿 양식) ────────────────────────────────────
+
+model Template {
+  id          String   @id @default(uuid())
+  title       String
+  phase       String
+  description String?
+  content     String?
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  createdById String
+  createdBy   User     @relation("TemplateCreator", fields: [createdById], references: [id])
+
+  files       TemplateFile[]
+
+  @@index([phase])
+}
+
+model TemplateFile {
+  id           String   @id @default(uuid())
+  filename     String
+  originalName String
+  mimetype     String
+  size         Int
+  url          String
+  createdAt    DateTime @default(now())
+
+  templateId String
+  template   Template @relation(fields: [templateId], references: [id], onDelete: Cascade)
 }

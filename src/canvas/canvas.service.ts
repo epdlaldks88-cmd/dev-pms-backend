@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Subject } from 'rxjs';
 import { filter, map } from 'rxjs/operators';
@@ -40,11 +40,22 @@ export class CanvasService {
     return updated;
   }
 
-  async rename(projectId: string, canvasId: string, name: string) {
+  // 이름변경·삭제는 등록자 또는 관리자만 가능
+  private async assertOwnerOrAdmin(canvasId: string, userId: string, userRole?: string) {
+    const canvas = await this.prisma.canvas.findUnique({ where: { id: canvasId }, select: { createdById: true } });
+    if (!canvas) throw new NotFoundException('캔버스를 찾을 수 없습니다.');
+    if (userRole !== 'ADMIN' && canvas.createdById !== userId) {
+      throw new ForbiddenException('등록자 또는 관리자만 가능합니다.');
+    }
+  }
+
+  async rename(projectId: string, canvasId: string, name: string, userId: string, userRole?: string) {
+    await this.assertOwnerOrAdmin(canvasId, userId, userRole);
     return this.prisma.canvas.update({ where: { id: canvasId }, data: { name } });
   }
 
-  async remove(projectId: string, canvasId: string) {
+  async remove(projectId: string, canvasId: string, userId: string, userRole?: string) {
+    await this.assertOwnerOrAdmin(canvasId, userId, userRole);
     await this.prisma.canvas.deleteMany({ where: { id: canvasId, projectId } });
   }
 

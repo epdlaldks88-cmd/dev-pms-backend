@@ -1,8 +1,17 @@
 node_modules
+dist/
+uploads/
+
 # Keep environment variables out of version control
 .env
+.env.*
+!.env.example
+!.env.production.example
 
 /generated/prisma
 
 dist/
 src/firebase-service-account.json
+
+# OpenAPI 추출 산출물 (npm run export:openapi 로 생성, 개발자에게 직접 전달)
+openapi.json

@@ -94,12 +94,16 @@ export class MeetingsService {
   }
 
   async update(id: string, userId: string, userRole: string, dto: UpdateMeetingDto) {
-    if (userRole !== 'ADMIN') {
-      const meeting = await this.prisma.meeting.findUnique({ where: { id }, select: { createdById: true } });
-      if (!meeting) throw new NotFoundException();
-      if (meeting.createdById !== userId) throw new ForbiddenException('회의록 작성자 또는 관리자만 수정할 수 있습니다.');
+    const existing = await this.prisma.meeting.findUnique({
+      where: { id },
+      select: { createdById: true, participants: { select: { userId: true } } },
+    });
+    if (!existing) throw new NotFoundException();
+    if (userRole !== 'ADMIN' && existing.createdById !== userId) {
+      throw new ForbiddenException('회의록 작성자 또는 관리자만 수정할 수 있습니다.');
     }
-    return this.prisma.meeting.update({
+
+    const meeting = await this.prisma.meeting.update({
       where: { id },
       data: {
         ...(dto.title !== undefined && { title: dto.title }),
@@ -122,6 +126,30 @@ export class MeetingsService {
       },
       select: MEETING_SELECT,
     });
+
+    // 새로 추가된 참석자에게만 알림 (기존 참석자·본인 제외)
+    if (dto.participantIds !== undefined) {
+      const prevIds = new Set(existing.participants.map((p) => p.userId));
+      const added = dto.participantIds.filter((pid) => !prevIds.has(pid) && pid !== userId);
+      if (added.length) {
+        const dateStr = meeting.meetingDate
+          ? new Date(meeting.meetingDate).toLocaleDateString('ko-KR')
+          : '날짜 미정';
+        await Promise.all(
+          added.map((pid) =>
+            this.notifications.create({
+              userId: pid,
+              type: 'TASK_ASSIGNED',
+              title: '회의에 초대되었습니다',
+              message: `"${meeting.title}" 회의에 참석자로 지정되었습니다. (${dateStr}${meeting.startTime ? ' ' + meeting.startTime : ''})`,
+              link: '/meetings',
+            }),
+          ),
+        );
+      }
+    }
+
+    return meeting;
   }
 
   async remove(id: string, userId: string, userRole: string) {

@@ -1,9 +1,27 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
+import { NestExpressApplication } from '@nestjs/platform-express';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import helmet from 'helmet';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+
+  // nginx 뒤에 있으므로 X-Forwarded-For를 신뢰해 req.ip가 실제 클라이언트 IP가 되게 함
+  // (rate limit이 nginx IP 하나로 뭉뚱그려지지 않도록)
+  app.set('trust proxy', 1);
+
+  const isProd = process.env.NODE_ENV === 'production';
+
+  // 보안 헤더. CSP는 API 서버 + (개발 환경) Swagger UI 호환을 위해 비활성화하고,
+  // 정적 첨부파일이 프론트(다른 오리진)에서 로드되도록 CORP는 cross-origin 허용.
+  app.use(
+    helmet({
+      contentSecurityPolicy: false,
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
+    }),
+  );
 
   app.setGlobalPrefix('api');
 
@@ -15,13 +33,56 @@ async function bootstrap() {
     }),
   );
 
+  // CORS: 콤마로 구분된 CORS_ORIGINS 환경변수로 허용 출처 지정.
+  // 모바일 앱처럼 Origin 헤더가 없는 요청(!origin)도 허용한다.
+  const rawOrigins = (
+    process.env.CORS_ORIGINS ||
+    process.env.FRONTEND_URL ||
+    'http://localhost:5173'
+  )
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean);
+
+  // credentials: true 와 '*'(전체 허용)는 함께 쓰면 어떤 사이트든 인증 요청을 보낼 수 있어 위험.
+  // 설정에 '*'가 있어도 코드에서 무시하고 경고 → 정확한 도메인만 허용되도록 강제한다.
+  const allowedOrigins = rawOrigins.filter((o) => o !== '*');
+  if (rawOrigins.includes('*')) {
+    console.warn(
+      '⚠️  CORS_ORIGINS에 "*"가 포함되어 있습니다. credentials와 함께 쓰면 위험하므로 무시합니다. 정확한 도메인을 지정하세요.',
+    );
+  }
+
   app.enableCors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+    origin: (origin, callback) => {
+      // 허용 목록에 없으면 에러를 던지지 않고 CORS 헤더만 생략(false)한다.
+      // 에러를 던지면 동일 출처 요청까지 500이 나므로 금지. 차단은 브라우저가 수행.
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(null, false);
+      }
+    },
     credentials: true,
   });
+
+  // Swagger (OpenAPI) 문서 — /api/docs. 운영 환경에서는 비활성화.
+  if (!isProd) {
+    const swaggerConfig = new DocumentBuilder()
+      .setTitle('PMS API')
+      .setDescription('PMS 백엔드 API 문서')
+      .setVersion('1.0')
+      .addBearerAuth()
+      .build();
+    const document = SwaggerModule.createDocument(app, swaggerConfig);
+    SwaggerModule.setup('api/docs', app, document, {
+      swaggerOptions: { persistAuthorization: true },
+    });
+  }
 
   const port = process.env.PORT || 3000;
   await app.listen(port, '0.0.0.0');
   console.log(`🚀 PMS Backend running on http://localhost:${port}/api`);
+  if (!isProd) console.log(`📚 Swagger docs on http://localhost:${port}/api/docs`);
 }
 bootstrap();

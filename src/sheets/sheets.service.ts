@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -8,7 +8,10 @@ export class SheetsService {
   async list(projectId: string) {
     return this.prisma.sheet.findMany({
       where: { projectId },
-      select: { id: true, name: true, order: true, createdAt: true, updatedAt: true },
+      select: {
+        id: true, name: true, order: true, createdAt: true, updatedAt: true,
+        createdBy: { select: { id: true, name: true, avatar: true } },
+      },
       orderBy: { order: 'asc' },
     });
   }
@@ -37,11 +40,22 @@ export class SheetsService {
     return this.prisma.sheet.update({ where: { id: sheetId }, data: { data } });
   }
 
-  async rename(projectId: string, sheetId: string, name: string) {
+  // 이름변경·삭제는 등록자 또는 관리자만 가능
+  private async assertOwnerOrAdmin(sheetId: string, userId: string, userRole?: string) {
+    const sheet = await this.prisma.sheet.findUnique({ where: { id: sheetId }, select: { createdById: true } });
+    if (!sheet) throw new NotFoundException('시트를 찾을 수 없습니다.');
+    if (userRole !== 'ADMIN' && sheet.createdById !== userId) {
+      throw new ForbiddenException('등록자 또는 관리자만 가능합니다.');
+    }
+  }
+
+  async rename(projectId: string, sheetId: string, name: string, userId: string, userRole?: string) {
+    await this.assertOwnerOrAdmin(sheetId, userId, userRole);
     return this.prisma.sheet.update({ where: { id: sheetId }, data: { name } });
   }
 
-  async remove(projectId: string, sheetId: string) {
+  async remove(projectId: string, sheetId: string, userId: string, userRole?: string) {
+    await this.assertOwnerOrAdmin(sheetId, userId, userRole);
     await this.prisma.sheet.deleteMany({ where: { id: sheetId, projectId } });
   }
 

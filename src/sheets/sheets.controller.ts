@@ -28,12 +28,12 @@ export class SheetsController {
   }
 
   @Put(':sheetId/rename')
-  rename(@Param('projectId') projectId: string, @Param('sheetId') sheetId: string, @Body('name') name: string) {
-    return this.svc.rename(projectId, sheetId, name);
+  rename(@Req() req: any, @Param('projectId') projectId: string, @Param('sheetId') sheetId: string, @Body('name') name: string) {
+    return this.svc.rename(projectId, sheetId, name, req.user.id, req.user.role);
   }
 
   @Delete(':sheetId')
-  remove(@Param('projectId') projectId: string, @Param('sheetId') sheetId: string) {
-    return this.svc.remove(projectId, sheetId);
+  remove(@Req() req: any, @Param('projectId') projectId: string, @Param('sheetId') sheetId: string) {
+    return this.svc.remove(projectId, sheetId, req.user.id, req.user.role);
   }
 }

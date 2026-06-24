@@ -9,9 +9,12 @@ const USER_SELECT = {
   name: true,
   avatar: true,
   role: true,
+  status: true,
   position: true,
   department: true,
   phone: true,
+  statusEmoji: true,
+  statusText: true,
   createdAt: true,
   updatedAt: true,
 };
@@ -45,6 +48,8 @@ export class UsersService {
         ...(dto.position !== undefined && { position: dto.position }),
         ...(dto.department !== undefined && { department: dto.department }),
         ...(dto.phone !== undefined && { phone: dto.phone }),
+        ...(dto.statusEmoji !== undefined && { statusEmoji: dto.statusEmoji }),
+        ...(dto.statusText !== undefined && { statusText: dto.statusText }),
       },
       select: USER_SELECT,
     });
@@ -59,6 +64,10 @@ export class UsersService {
 
     const hashed = await bcrypt.hash(dto.newPassword, 10);
     await this.prisma.user.update({ where: { id }, data: { password: hashed } });
+
+    // 비밀번호 변경 시 기존 refresh token 전부 폐기 → 탈취된 세션 강제 로그아웃
+    await this.prisma.refreshToken.deleteMany({ where: { userId: id } });
+
     return { message: '비밀번호가 변경되었습니다.' };
   }
 
@@ -74,6 +83,66 @@ export class UsersService {
       },
       select: USER_SELECT,
     });
+  }
+
+  async getPendingUsers() {
+    return this.prisma.user.findMany({
+      where: { status: 'PENDING' },
+      select: { ...USER_SELECT, status: true },
+      orderBy: { createdAt: 'asc' },
+    });
+  }
+
+  async approveUser(id: string) {
+    return this.prisma.user.update({
+      where: { id },
+      data: { status: 'ACTIVE' },
+      select: USER_SELECT,
+    });
+  }
+
+  async rejectUser(id: string) {
+    await this.prisma.user.delete({ where: { id } });
+    return { ok: true };
+  }
+
+  // 관리자: 사용자 탈퇴(비활성화). 데이터는 보존하고 로그인만 차단한다.
+  async withdrawUser(adminId: string, id: string) {
+    if (adminId === id) {
+      throw new BadRequestException('자기 자신은 탈퇴시킬 수 없습니다.');
+    }
+    const user = await this.prisma.user.findUnique({ where: { id } });
+    if (!user) throw new NotFoundException('사용자를 찾을 수 없습니다.');
+
+    // 비활성화 + 모든 리프레시 토큰 삭제(기존 세션 즉시 차단)
+    const [updated] = await this.prisma.$transaction([
+      this.prisma.user.update({ where: { id }, data: { status: 'INACTIVE' }, select: USER_SELECT }),
+      this.prisma.refreshToken.deleteMany({ where: { userId: id } }),
+    ]);
+    return updated;
+  }
+
+  // 관리자: 탈퇴 사용자 복구(재활성화)
+  async reactivateUser(id: string) {
+    const user = await this.prisma.user.findUnique({ where: { id } });
+    if (!user) throw new NotFoundException('사용자를 찾을 수 없습니다.');
+    return this.prisma.user.update({ where: { id }, data: { status: 'ACTIVE' }, select: USER_SELECT });
+  }
+
+  async markOnline(id: string) {
+    await this.prisma.user.update({
+      where: { id },
+      data: { lastSeenAt: new Date() },
+    });
+  }
+
+  async getOnlineIds(): Promise<string[]> {
+    const threshold = new Date(Date.now() - 2 * 60 * 1000);
+    const users = await this.prisma.user.findMany({
+      where: { lastSeenAt: { gte: threshold } },
+      select: { id: true },
+    });
+    return users.map((u) => u.id);
   }
 
   // backward compat

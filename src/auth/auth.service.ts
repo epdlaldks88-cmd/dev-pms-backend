@@ -2,6 +2,7 @@ import {
   Injectable,
   ConflictException,
   UnauthorizedException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
@@ -24,13 +25,25 @@ export class AuthService {
     if (exists) throw new ConflictException('이미 사용 중인 이메일입니다.');
 
     const hashed = await bcrypt.hash(dto.password, 10);
-    const user = await this.prisma.user.create({
-      data: { email: dto.email, name: dto.name, password: hashed },
-      select: { id: true, email: true, name: true, role: true, avatar: true, createdAt: true },
+
+    // 첫 번째 유저는 자동으로 ADMIN + ACTIVE 처리
+    const userCount = await this.prisma.user.count();
+    const isFirst = userCount === 0;
+
+    await this.prisma.user.create({
+      data: {
+        email: dto.email,
+        name: dto.name,
+        password: hashed,
+        role: isFirst ? 'ADMIN' : 'MEMBER',
+        status: isFirst ? 'ACTIVE' : 'PENDING',
+      },
     });
 
-    const tokens = await this.generateTokens(user.id, user.email);
-    return { user, ...tokens };
+    if (isFirst) {
+      return { pending: false, message: '관리자 계정이 생성되었습니다. 로그인해주세요.' };
+    }
+    return { pending: true, message: '회원가입이 완료되었습니다. 관리자 승인 후 로그인하실 수 있습니다.' };
   }
 
   async login(dto: LoginDto) {
@@ -39,6 +52,13 @@ export class AuthService {
 
     const valid = await bcrypt.compare(dto.password, user.password);
     if (!valid) throw new UnauthorizedException('이메일 또는 비밀번호가 올바르지 않습니다.');
+
+    if (user.status === 'PENDING') {
+      throw new ForbiddenException('관리자 승인 대기 중입니다. 승인 후 로그인하실 수 있습니다.');
+    }
+    if (user.status === 'INACTIVE') {
+      throw new ForbiddenException('비활성화된 계정입니다. 관리자에게 문의해주세요.');
+    }
 
     const { password: _, ...safeUser } = user;
     const tokens = await this.generateTokens(user.id, user.email);
@@ -53,6 +73,12 @@ export class AuthService {
 
     const user = await this.prisma.user.findUnique({ where: { id: stored.userId } });
     if (!user) throw new UnauthorizedException();
+
+    // 비활성화/승인대기 계정은 토큰 갱신 차단 (탈퇴 시 세션 즉시 만료)
+    if (user.status !== 'ACTIVE') {
+      await this.prisma.refreshToken.deleteMany({ where: { userId: user.id } });
+      throw new ForbiddenException('비활성화된 계정입니다.');
+    }
 
     await this.prisma.refreshToken.delete({ where: { token } });
     const tokens = await this.generateTokens(user.id, user.email);

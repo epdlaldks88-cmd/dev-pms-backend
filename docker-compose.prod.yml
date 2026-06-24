@@ -1,0 +1,58 @@
+services:
+  db:
+    image: postgres:16
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    # 서버 내부(localhost)에만 5432 노출 → SSH 터널로 DBeaver 등 접속용.
+    # 127.0.0.1 바인딩이라 외부에서는 접근 불가 (ACG에서도 5432 차단 유지).
+    ports:
+      - '127.0.0.1:5432:5432'
+
+  backend:
+    build: .
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?schema=public
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN}
+      JWT_ACCESS_EXPIRES_IN: ${JWT_ACCESS_EXPIRES_IN}
+      JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN}
+      CORS_ORIGINS: ${CORS_ORIGINS}
+      PORT: 3000
+      UPLOAD_DIR: ./uploads
+    volumes:
+      - uploads_data:/app/uploads
+    # 직접 노출 대신 nginx를 통해 접근. 디버깅이 필요하면 아래 주석 해제.
+    # ports:
+    #   - '3000:3000'
+
+  # 프론트(React 빌드) 정적 서빙 + /api 프록시 = 공개 진입점
+  # build context는 형제로 clone한 dev-pms 저장소의 frontend 디렉터리
+  web:
+    build: ../dev-pms/frontend
+    restart: always
+    depends_on:
+      - backend
+    ports:
+      - '80:80'
+      # 도메인+HTTPS 적용 시 아래 주석 해제
+      # - '443:443'
+
+volumes:
+  pgdata:
+  uploads_data:
