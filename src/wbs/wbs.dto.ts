@@ -1,4 +1,26 @@
-import { IsString, IsOptional, IsDateString, IsInt, Min, Max, IsUUID } from 'class-validator';
+import { IsString, IsOptional, IsDateString, IsInt, Min, Max, IsUUID, IsArray, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
+
+class ReorderItem {
+  @IsString()
+  id: string;
+
+  @IsInt()
+  order: number;
+
+  @IsOptional() @IsString()
+  parentId: string | null;
+
+  @IsInt()
+  depth: number;
+}
+
+export class ReorderWbsDto {
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ReorderItem)
+  items: ReorderItem[];
+}
 
 export class CreateWbsItemDto {
   @IsString()
@@ -58,6 +80,3 @@ export class UpdateWbsItemDto {
   parentId?: string | null;
 }
 
-export class ReorderWbsDto {
-  items: { id: string; order: number; parentId: string | null; depth: number }[];
-}
