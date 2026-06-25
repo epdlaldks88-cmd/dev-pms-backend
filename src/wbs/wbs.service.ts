@@ -13,6 +13,15 @@ export class WbsService {
     });
   }
 
+  async findAllForUser() {
+    return this.prisma.wbsItem.findMany({
+      include: {
+        project: { select: { id: true, name: true, color: true } },
+      },
+      orderBy: [{ order: 'asc' }, { createdAt: 'asc' }],
+    });
+  }
+
   async create(projectId: string, dto: CreateWbsItemDto) {
     const count = await this.prisma.wbsItem.count({ where: { projectId } });
     return this.prisma.wbsItem.create({
@@ -39,8 +48,12 @@ export class WbsService {
       data: {
         ...(dto.title !== undefined && { title: dto.title }),
         ...(dto.assignee !== undefined && { assignee: dto.assignee || null }),
-        ...(dto.startDate !== undefined && { startDate: dto.startDate ? new Date(dto.startDate) : null }),
-        ...(dto.endDate !== undefined && { endDate: dto.endDate ? new Date(dto.endDate) : null }),
+        ...(dto.startDate !== undefined && {
+          startDate: dto.startDate ? new Date(dto.startDate) : null,
+        }),
+        ...(dto.endDate !== undefined && {
+          endDate: dto.endDate ? new Date(dto.endDate) : null,
+        }),
         ...(dto.progress !== undefined && { progress: dto.progress }),
         ...(dto.status !== undefined && { status: dto.status }),
         ...(dto.note !== undefined && { note: dto.note || null }),
@@ -60,7 +73,11 @@ export class WbsService {
       dto.items.map((item) =>
         this.prisma.wbsItem.update({
           where: { id: item.id },
-          data: { order: item.order, parentId: item.parentId, depth: item.depth },
+          data: {
+            order: item.order,
+            parentId: item.parentId,
+            depth: item.depth,
+          },
         }),
       ),
     );
