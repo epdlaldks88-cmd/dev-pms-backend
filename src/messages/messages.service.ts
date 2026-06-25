@@ -2,6 +2,7 @@ import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { MessagesSseService } from './messages-sse.service';
+import { ChatGateway } from '../chat/chat.gateway';
 import { SendMessageDto } from './dto/message.dto';
 import { stripHtmlTags } from '../common/sanitize.util';
 
@@ -23,9 +24,9 @@ export class MessagesService {
     private prisma: PrismaService,
     private notifications: NotificationsService,
     private sseService: MessagesSseService,
+    private chatGateway: ChatGateway,
   ) {}
 
-  // 상대별 대화 목록 (최근 메시지 + 안읽음 수)
   async conversations(userId: string) {
     const msgs = await this.prisma.message.findMany({
       where: { OR: [{ senderId: userId }, { recipientId: userId }] },
@@ -48,11 +49,16 @@ export class MessagesService {
     return Array.from(map.values());
   }
 
-  // 특정 상대와의 대화 스레드 (조회 시 받은 메시지 읽음 처리)
   async thread(userId: string, otherId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: otherId },
-      select: { id: true, name: true, avatar: true, position: true, department: true },
+      select: {
+        id: true,
+        name: true,
+        avatar: true,
+        position: true,
+        department: true,
+      },
     });
 
     const messages = await this.prisma.message.findMany({
@@ -82,11 +88,7 @@ export class MessagesService {
     const content = stripHtmlTags(dto.content);
 
     const message = await this.prisma.message.create({
-      data: {
-        content,
-        senderId,
-        recipientId: dto.recipientId,
-      },
+      data: { content, senderId, recipientId: dto.recipientId },
       select: MESSAGE_SELECT,
     });
 
@@ -95,13 +97,18 @@ export class MessagesService {
       select: { name: true },
     });
 
+    // WebSocket으로 수신자에게 실시간 전송
+    this.chatGateway.emitDirectMessage(dto.recipientId, message);
+
+    // SSE (기존 유지)
     this.sseService.emit({
       recipientId: dto.recipientId,
       senderId,
       senderName: sender?.name ?? '누군가',
     });
 
-    const preview = content.length > 100 ? `${content.slice(0, 100)}…` : content;
+    const preview =
+      content.length > 100 ? `${content.slice(0, 100)}…` : content;
     await this.notifications.create({
       userId: dto.recipientId,
       type: 'MENTION',

@@ -1,14 +1,22 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { stripHtmlTags } from '../common/sanitize.util';
+import { ChatGateway } from '../chat/chat.gateway';
 
 const USER_MINI = { select: { id: true, name: true, avatar: true } };
 
 @Injectable()
 export class RoomsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private chatGateway: ChatGateway,
+  ) {}
 
-  // 내가 속한 룸 목록 (최신 메시지 + 안읽은 수 포함)
+  // 내가 속한 룸 목록
   async myRooms(userId: string) {
     const rooms = await this.prisma.room.findMany({
       where: { members: { some: { userId } } },
@@ -38,7 +46,9 @@ export class RoomsService {
       data: {
         name,
         createdById: userId,
-        members: { createMany: { data: allMemberIds.map((id) => ({ userId: id })) } },
+        members: {
+          createMany: { data: allMemberIds.map((id) => ({ userId: id })) },
+        },
       },
       include: { members: { include: { user: USER_MINI } } },
     });
@@ -68,8 +78,14 @@ export class RoomsService {
       data: { roomId, senderId: userId, content: clean },
       include: { sender: USER_MINI },
     });
-    // updatedAt 갱신
-    await this.prisma.room.update({ where: { id: roomId }, data: { updatedAt: new Date() } });
+    await this.prisma.room.update({
+      where: { id: roomId },
+      data: { updatedAt: new Date() },
+    });
+
+    // WebSocket으로 실시간 브로드캐스트
+    this.chatGateway.emitRoomMessage(roomId, msg);
+
     return msg;
   }
 
@@ -93,9 +109,9 @@ export class RoomsService {
   // 룸 나가기
   async leave(roomId: string, userId: string) {
     await this.prisma.roomMember.deleteMany({ where: { roomId, userId } });
-    // 멤버가 0명이면 룸 삭제
     const remaining = await this.prisma.roomMember.count({ where: { roomId } });
-    if (remaining === 0) await this.prisma.room.delete({ where: { id: roomId } });
+    if (remaining === 0)
+      await this.prisma.room.delete({ where: { id: roomId } });
     return { ok: true };
   }
 

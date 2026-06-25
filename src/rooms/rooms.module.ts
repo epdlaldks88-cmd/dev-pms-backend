@@ -1,12 +1,12 @@
 import { Module } from '@nestjs/common';
-import { RoomsService } from './rooms.service';
 import { RoomsController } from './rooms.controller';
+import { RoomsService } from './rooms.service';
 import { RoomsSseService } from './rooms-sse.service';
-import { PrismaModule } from '../prisma/prisma.module';
+import { ChatModule } from '../chat/chat.module';
 
 @Module({
-  imports: [PrismaModule],
-  providers: [RoomsService, RoomsSseService],
+  imports: [ChatModule],
   controllers: [RoomsController],
+  providers: [RoomsService, RoomsSseService],
 })
 export class RoomsModule {}

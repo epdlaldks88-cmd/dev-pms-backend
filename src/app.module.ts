@@ -26,6 +26,8 @@ import { DeviceTokensModule } from './device-tokens/device-tokens.module';
 import { TemplatesModule } from './templates/templates.module';
 import { RoomsModule } from './rooms/rooms.module';
 import { QAModule } from './qa/qa.module';
+import { ChatModule } from './chat/chat.module';
+
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
@@ -58,6 +60,7 @@ import { QAModule } from './qa/qa.module';
     TemplatesModule,
     RoomsModule,
     QAModule,
+    ChatModule,
   ],
 })
 export class AppModule {}

@@ -4,6 +4,7 @@ import { NotificationType } from '@prisma/client';
 import { FirebaseService } from '../firebase/firebase.service';
 import { DeviceTokensService } from '../device-tokens/device-tokens.service';
 import { NotificationsSseService } from './notifications-sse.service';
+import { ChatGateway } from '../chat/chat.gateway';
 
 interface CreateNotificationDto {
   userId: string;
@@ -20,6 +21,7 @@ export class NotificationsService {
     private firebaseService: FirebaseService,
     private deviceTokensService: DeviceTokensService,
     private sseService: NotificationsSseService,
+    private chatGateway: ChatGateway,
   ) {}
 
   async create(dto: CreateNotificationDto) {
@@ -32,6 +34,16 @@ export class NotificationsService {
       type: dto.type,
       title: dto.title,
       message: dto.message,
+    });
+
+    // WebSocket 실시간 전송
+    this.chatGateway.emitNotification(dto.userId, {
+      id: notification.id,
+      type: dto.type,
+      title: dto.title,
+      message: dto.message,
+      link: dto.link,
+      createdAt: notification.createdAt,
     });
 
     // 3. FCM 푸시 발송
