@@ -6,6 +6,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { stripHtmlTags } from '../common/sanitize.util';
 import { ChatGateway } from '../chat/chat.gateway';
+import { NotificationsService } from '../notifications/notifications.service';
 
 const USER_MINI = { select: { id: true, name: true, avatar: true } };
 
@@ -14,6 +15,7 @@ export class RoomsService {
   constructor(
     private prisma: PrismaService,
     private chatGateway: ChatGateway,
+    private notifications: NotificationsService,
   ) {}
 
   // 내가 속한 룸 목록
@@ -71,6 +73,7 @@ export class RoomsService {
   }
 
   // 메시지 전송
+  // 메시지 전송
   async send(roomId: string, userId: string, content: string) {
     await this.assertMember(roomId, userId);
     const clean = stripHtmlTags(content);
@@ -84,7 +87,25 @@ export class RoomsService {
     });
 
     // WebSocket으로 실시간 브로드캐스트
-    this.chatGateway.emitRoomMessage(roomId, msg);
+    this.chatGateway.emitRoomMessage(roomId, { ...msg, roomId });
+
+    // 룸 멤버들에게 알림 발송
+    const members = await this.prisma.roomMember.findMany({
+      where: { roomId, userId: { not: userId } }, // 보낸 사람 제외
+      select: { userId: true },
+    });
+
+    await Promise.all(
+      members.map((member) =>
+        this.notifications.create({
+          userId: member.userId,
+          type: 'MENTION',
+          title: `${msg.sender.name} (채팅방)`,
+          message: clean.length > 100 ? `${clean.slice(0, 100)}…` : clean,
+          link: `/rooms/${roomId}`,
+        }),
+      ),
+    );
 
     return msg;
   }

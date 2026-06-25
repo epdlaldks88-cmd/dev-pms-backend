@@ -66,9 +66,15 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     client.leave(`room:${roomId}`);
   }
 
-  // 채팅방 메시지 브로드캐스트
+  // 채팅방 메시지 브로드캐스트 (룸 + 개인 채널)
   emitRoomMessage(roomId: string, message: any) {
-    this.server.to(`room:${roomId}`).emit('roomMessage', message);
+    // 룸에 있는 사람들한테 전송
+    this.server
+      .to(`room:${roomId}`)
+      .emit('roomMessage', { ...message, roomId });
+
+    // 룸 멤버 개인 채널로도 전송 (앱이 다른 화면에 있을 때)
+    this.server.emit('globalRoomMessage', { ...message, roomId });
   }
 
   // 1:1 쪽지 브로드캐스트
