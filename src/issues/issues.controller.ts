@@ -1,4 +1,14 @@
-import { Controller, Get, Post, Patch, Delete, Body, Param, Req, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Delete,
+  Body,
+  Param,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { IssuesService } from './issues.service';
 import { CreateIssueDto, UpdateIssueDto } from './dto/issue.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -23,10 +33,7 @@ export class IssuesController {
   }
 
   @Patch(':issueId')
-  update(
-    @Param('issueId') issueId: string,
-    @Body() dto: UpdateIssueDto,
-  ) {
+  update(@Param('issueId') issueId: string, @Body() dto: UpdateIssueDto) {
     return this.issuesService.update(issueId, dto);
   }
 

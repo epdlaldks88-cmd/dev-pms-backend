@@ -29,6 +29,16 @@ export class IssuesService {
     });
   }
 
+  async findAllForUser() {
+    return this.prisma.issue.findMany({
+      select: {
+        ...ISSUE_SELECT,
+        project: { select: { id: true, name: true, color: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
   async create(projectId: string, userId: string, dto: CreateIssueDto) {
     return this.prisma.issue.create({
       data: {
@@ -46,7 +56,9 @@ export class IssuesService {
   }
 
   async update(issueId: string, dto: UpdateIssueDto) {
-    const issue = await this.prisma.issue.findUnique({ where: { id: issueId } });
+    const issue = await this.prisma.issue.findUnique({
+      where: { id: issueId },
+    });
     if (!issue) throw new NotFoundException('이슈를 찾을 수 없습니다.');
 
     return this.prisma.issue.update({
@@ -64,7 +76,9 @@ export class IssuesService {
   }
 
   async remove(issueId: string) {
-    const issue = await this.prisma.issue.findUnique({ where: { id: issueId } });
+    const issue = await this.prisma.issue.findUnique({
+      where: { id: issueId },
+    });
     if (!issue) throw new NotFoundException('이슈를 찾을 수 없습니다.');
     await this.prisma.issue.delete({ where: { id: issueId } });
     return { message: '이슈가 삭제되었습니다.' };
