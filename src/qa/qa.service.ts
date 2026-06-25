@@ -2,6 +2,13 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateQATestDto, UpdateQATestDto } from './dto/qa.dto';
 
+const WORKLOG_SELECT = {
+  id: true, taskTitle: true, srNumber: true, projectName: true,
+  requester: true, requestDate: true, startDate: true, endDate: true,
+  stage: true, hours: true, description: true,
+  user: { select: { id: true, name: true } },
+} as const;
+
 @Injectable()
 export class QAService {
   constructor(private prisma: PrismaService) {}
@@ -23,10 +30,13 @@ export class QAService {
     return `${prefix}${seq}`;
   }
 
-  async findAll(srNumber?: string) {
+  async findAll(filter?: { srNumber?: string; workLogId?: string }) {
+    const where: any = {};
+    if (filter?.srNumber) where.srNumber = filter.srNumber;
+    if (filter?.workLogId) where.workLogId = filter.workLogId;
     return this.prisma.qATest.findMany({
-      where: srNumber ? { srNumber } : undefined,
-      include: { workLog: { select: { id: true, taskTitle: true, srNumber: true } } },
+      where,
+      include: { workLog: { select: WORKLOG_SELECT } },
       orderBy: { createdAt: 'desc' },
     });
   }
@@ -34,7 +44,7 @@ export class QAService {
   async findOne(id: string) {
     return this.prisma.qATest.findUniqueOrThrow({
       where: { id },
-      include: { workLog: { select: { id: true, taskTitle: true, srNumber: true } } },
+      include: { workLog: { select: WORKLOG_SELECT } },
     });
   }
 
@@ -61,25 +71,22 @@ export class QAService {
     const qaNumber = await this.generateQANumber();
     return this.prisma.qATest.update({
       where: { id },
-      data: { qaNumber, status: 'IN_PROGRESS' },
+      data: { qaNumber, status: 'IN_PROGRESS', acceptedAt: new Date() },
     });
   }
 
-  // 확인(PASS) / 반려(REJECTED) / 취소(CANCELLED)
-  async changeStatus(id: string, action: 'confirm' | 'reject' | 'cancel') {
+  // 확인(PASS) / 반려(REJECTED) / 취소(CANCELLED) / 되돌리기(reopen → IN_PROGRESS)
+  async changeStatus(id: string, action: 'confirm' | 'reject' | 'cancel' | 'reopen') {
     const qa = await this.prisma.qATest.findUnique({ where: { id } });
     if (!qa) throw new NotFoundException('QA 테스트를 찾을 수 없습니다.');
 
-    const updateMap = {
-      confirm: { status: 'COMPLETED' as const, result: 'PASS' as const },
-      reject:  { status: 'COMPLETED' as const, result: 'REJECTED' as const },
-      cancel:  { status: 'CANCELLED' as const },
-    };
+    const data: any = {};
+    if (action === 'confirm') { data.status = 'COMPLETED'; data.result = 'PASS'; data.completedAt = new Date(); }
+    else if (action === 'reject') { data.status = 'COMPLETED'; data.result = 'REJECTED'; data.completedAt = new Date(); }
+    else if (action === 'cancel') { data.status = 'CANCELLED'; }
+    else if (action === 'reopen') { data.status = 'IN_PROGRESS'; data.result = null; data.completedAt = null; }
 
-    return this.prisma.qATest.update({
-      where: { id },
-      data: updateMap[action],
-    });
+    return this.prisma.qATest.update({ where: { id }, data });
   }
 
   async update(id: string, dto: UpdateQATestDto) {

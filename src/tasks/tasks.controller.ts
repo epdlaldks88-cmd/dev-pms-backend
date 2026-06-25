@@ -67,6 +67,17 @@ export class TasksController {
     return result;
   }
 
+  @Post('bulk')
+  async bulkCreate(
+    @Param('projectId') projectId: string,
+    @Req() req: any,
+    @Body() body: { rows: Array<{ category: string; title: string; description?: string; assigneeName?: string; priority?: string; startDate?: string; dueDate?: string }> },
+  ) {
+    const result = await this.tasksService.bulkCreate(projectId, req.user.id, body.rows ?? []);
+    this.sseService.emit({ projectId, type: 'create', actorId: req.user.id });
+    return result;
+  }
+
   @Patch(':taskId')
   async update(
     @Param('taskId') taskId: string,

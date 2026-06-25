@@ -10,6 +10,7 @@ const TASK_SELECT = {
   title: true,
   description: true,
   requester: true,
+  part: true,
   priority: true,
   status: true,
   startDate: true,
@@ -59,8 +60,9 @@ export class TasksService {
     private notifications: NotificationsService,
   ) {}
 
-  async findAll(projectId: string, query?: { stepId?: string; status?: string; priority?: string; assigneeId?: string }) {
-    const where: any = { projectId, parentId: null };
+  async findAll(projectId: string, query?: { stepId?: string; status?: string; priority?: string; assigneeId?: string; includeSubtasks?: string }) {
+    const where: any = { projectId };
+    if (!query?.includeSubtasks) where.parentId = null;
     if (query?.stepId) where.stepId = query.stepId;
     if (query?.status) where.status = query.status;
     if (query?.priority) where.priority = query.priority;
@@ -83,15 +85,35 @@ export class TasksService {
       }),
       this.prisma.task.findMany({
         where: { projectId, parentId: null },
-        select: TASK_SELECT,
+        select: {
+          ...TASK_SELECT,
+          // 카드에 표기할 워크로드(일감) 통계용
+          workLogs: { select: { stage: true } },
+          subTasks: {
+            select: TASK_SELECT,
+            orderBy: [{ order: 'asc' }, { createdAt: 'asc' }],
+          },
+        },
         orderBy: [{ order: 'asc' }, { createdAt: 'desc' }],
       }),
     ]);
 
+    // 완료 이상 단계 = COMPLETED, USER_CONFIRMED, DEPLOYED
+    const COMPLETED_STAGES = ['COMPLETED', 'USER_CONFIRMED', 'DEPLOYED'];
+    const now = new Date();
+    const withStats = tasks.map((t) => {
+      const { workLogs, ...rest } = t as any;
+      const total = workLogs.length;
+      const completed = workLogs.filter((w: any) => COMPLETED_STAGES.includes(w.stage)).length;
+      // 지연: 태스크 마감일이 지났는데 완료 이상이 아닌 일감이 남아있음
+      const overdue = !!rest.dueDate && new Date(rest.dueDate) < now && completed < total;
+      return { ...rest, workLogStats: { total, completed, overdue } };
+    });
+
     return steps.map((step, idx) => ({
       ...step,
       // 단계 미지정(orphan) 태스크는 첫 컬럼에 함께 표시
-      tasks: tasks.filter((t) => t.stepId === step.id || (idx === 0 && !t.stepId)),
+      tasks: withStats.filter((t) => t.stepId === step.id || (idx === 0 && !t.stepId)),
     }));
   }
 
@@ -221,6 +243,122 @@ export class TasksService {
     }
 
     return task;
+  }
+
+  // 엑셀 일괄 등록: 업무구분별로 상위 태스크를 만들고 각 행을 하위 태스크로 생성
+  async bulkCreate(
+    projectId: string,
+    userId: string,
+    rows: Array<{
+      category: string;
+      title?: string;
+      description?: string;
+      assigneeName?: string;
+      priority?: string;
+      startDate?: string;
+      dueDate?: string;
+      part?: string;
+    }>,
+  ) {
+    // 업무구분(category)만 필수, 요구사항(title)은 선택
+    const valid = rows.filter((r) => r.category?.trim());
+    if (valid.length === 0) {
+      throw new NotFoundException('등록할 유효한 데이터가 없습니다. (업무구분 필수)');
+    }
+
+    // 첫 번째 컬럼(Step) — 상위/하위 모두 여기로
+    const firstStep = await this.prisma.step.findFirst({
+      where: { projectId },
+      orderBy: { order: 'asc' },
+      select: { id: true, status: true },
+    });
+
+    // 프로젝트 멤버(담당자 이름 매칭용)
+    const members = await this.prisma.projectMember.findMany({
+      where: { projectId },
+      select: { user: { select: { id: true, name: true } } },
+    });
+    const nameToUserId = new Map(members.map((m) => [m.user.name.trim(), m.user.id]));
+
+    const PRIORITIES = ['URGENT', 'HIGH', 'MEDIUM', 'LOW'];
+    const normPriority = (p?: string) => {
+      const up = (p ?? '').trim().toUpperCase();
+      return PRIORITIES.includes(up) ? up : 'MEDIUM';
+    };
+    const parseDate = (d?: string) => {
+      if (!d?.trim()) return undefined;
+      const dt = new Date(d.trim());
+      return isNaN(dt.getTime()) ? undefined : dt;
+    };
+
+    // 업무구분(category)별 그룹핑 — 입력 순서 유지
+    const categories: string[] = [];
+    const grouped = new Map<string, typeof valid>();
+    for (const r of valid) {
+      const cat = r.category.trim();
+      if (!grouped.has(cat)) { grouped.set(cat, []); categories.push(cat); }
+      grouped.get(cat)!.push(r);
+    }
+
+    let parentCount = 0;
+    let childCount = 0;
+
+    // 기존 상위 태스크(같은 업무구분 제목)는 재사용
+    const existingParents = await this.prisma.task.findMany({
+      where: { projectId, parentId: null, title: { in: categories } },
+      select: { id: true, title: true },
+    });
+    const titleToParentId = new Map(existingParents.map((p) => [p.title, p.id]));
+
+    await this.prisma.$transaction(async (tx) => {
+      for (const cat of categories) {  // 대량(162행+) 대비 타임아웃 여유 부여 (아래 옵션)
+        let parentId = titleToParentId.get(cat);
+        if (!parentId) {
+          const firstRow = grouped.get(cat)![0];
+          // 서브태스크 없는 행(title 없는 행)에 description이 있으면 상위 태스크에 적용
+          const parentDescRow = grouped.get(cat)!.find((r) => !r.title?.trim() && r.description?.trim());
+          const parent = await tx.task.create({
+            data: {
+              title: cat,
+              part: firstRow?.part?.trim() || undefined,
+              description: parentDescRow?.description?.trim() || undefined,
+              projectId,
+              createdById: userId,
+              stepId: firstStep?.id,
+              status: firstStep?.status ?? 'TODO',
+            },
+            select: { id: true },
+          });
+          parentId = parent.id;
+          parentCount++;
+        }
+
+        const children = grouped.get(cat)!.filter((r) => r.title?.trim());
+        for (let i = 0; i < children.length; i++) {
+          const r = children[i];
+          const assigneeId = r.assigneeName ? nameToUserId.get(r.assigneeName.trim()) : undefined;
+          await tx.task.create({
+            data: {
+              title: r.title!.trim(),
+              description: r.description?.trim() || undefined,
+              priority: normPriority(r.priority) as any,
+              status: firstStep?.status ?? 'TODO',
+              stepId: firstStep?.id,
+              startDate: parseDate(r.startDate),
+              dueDate: parseDate(r.dueDate),
+              order: i,
+              parentId,
+              projectId,
+              createdById: userId,
+              assignees: assigneeId ? { create: { userId: assigneeId } } : undefined,
+            },
+          });
+          childCount++;
+        }
+      }
+    }, { timeout: 60000, maxWait: 10000 });
+
+    return { parentCount, childCount, total: childCount };
   }
 
   async update(taskId: string, userId: string, userRole: string, dto: UpdateTaskDto) {

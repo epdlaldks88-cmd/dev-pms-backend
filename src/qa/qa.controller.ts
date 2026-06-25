@@ -9,8 +9,8 @@ export class QAController {
   constructor(private readonly qaService: QAService) {}
 
   @Get()
-  findAll(@Query('srNumber') srNumber?: string) {
-    return this.qaService.findAll(srNumber);
+  findAll(@Query('srNumber') srNumber?: string, @Query('workLogId') workLogId?: string) {
+    return this.qaService.findAll({ srNumber, workLogId });
   }
 
   @Get(':id')
@@ -41,6 +41,11 @@ export class QAController {
   @Patch(':id/cancel')
   cancel(@Param('id') id: string) {
     return this.qaService.changeStatus(id, 'cancel');
+  }
+
+  @Patch(':id/reopen')
+  reopen(@Param('id') id: string) {
+    return this.qaService.changeStatus(id, 'reopen');
   }
 
   @Patch(':id')

@@ -27,6 +27,7 @@ import { TemplatesModule } from './templates/templates.module';
 import { RoomsModule } from './rooms/rooms.module';
 import { QAModule } from './qa/qa.module';
 import { ChatModule } from './chat/chat.module';
+import { WbsModule } from './wbs/wbs.module';
 
 @Module({
   imports: [
@@ -61,6 +62,7 @@ import { ChatModule } from './chat/chat.module';
     RoomsModule,
     QAModule,
     ChatModule,
+    WbsModule,
   ],
 })
 export class AppModule {}

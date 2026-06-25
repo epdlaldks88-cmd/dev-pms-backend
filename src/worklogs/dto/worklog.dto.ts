@@ -48,6 +48,10 @@ export class CreateWorkLogDto {
 
 export class UpdateWorkLogDto {
   @IsOptional()
+  @IsUUID()
+  taskId?: string;
+
+  @IsOptional()
   @IsNumber()
   @Min(0)
   hours?: number;
