@@ -1,4 +1,4 @@
-import { Controller, Get, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, Req, UseGuards } from '@nestjs/common';
 import { TasksService } from './tasks.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
@@ -6,6 +6,11 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 @Controller('tasks')
 export class SingleTaskController {
   constructor(private tasksService: TasksService) {}
+
+  @Get('my')
+  findMyTasks(@Req() req: any) {
+    return this.tasksService.findMyTasks(req.user.id);
+  }
 
   @Get(':taskId')
   findOne(@Param('taskId') taskId: string) {

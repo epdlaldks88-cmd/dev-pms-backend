@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
@@ -24,7 +28,9 @@ const TASK_SELECT = {
   step: { select: { id: true, name: true, color: true } },
   createdBy: { select: { id: true, name: true, avatar: true } },
   assignees: {
-    select: { user: { select: { id: true, name: true, avatar: true, email: true } } },
+    select: {
+      user: { select: { id: true, name: true, avatar: true, email: true } },
+    },
   },
   labels: {
     select: { label: { select: { id: true, name: true, color: true } } },
@@ -43,13 +49,19 @@ const TASK_SELECT = {
   },
   issues: {
     select: {
-      id: true, title: true, description: true, riskLevel: true, status: true,
+      id: true,
+      title: true,
+      description: true,
+      riskLevel: true,
+      status: true,
       taskId: true,
       assignee: { select: { id: true, name: true, avatar: true } },
     },
     orderBy: { createdAt: 'asc' as const },
   },
-  _count: { select: { comments: true, attachments: true, subTasks: true, issues: true } },
+  _count: {
+    select: { comments: true, attachments: true, subTasks: true, issues: true },
+  },
 };
 
 @Injectable()
@@ -60,7 +72,16 @@ export class TasksService {
     private notifications: NotificationsService,
   ) {}
 
-  async findAll(projectId: string, query?: { stepId?: string; status?: string; priority?: string; assigneeId?: string; includeSubtasks?: string }) {
+  async findAll(
+    projectId: string,
+    query?: {
+      stepId?: string;
+      status?: string;
+      priority?: string;
+      assigneeId?: string;
+      includeSubtasks?: string;
+    },
+  ) {
     const where: any = { projectId };
     if (!query?.includeSubtasks) where.parentId = null;
     if (query?.stepId) where.stepId = query.stepId;
@@ -104,16 +125,21 @@ export class TasksService {
     const withStats = tasks.map((t) => {
       const { workLogs, ...rest } = t as any;
       const total = workLogs.length;
-      const completed = workLogs.filter((w: any) => COMPLETED_STAGES.includes(w.stage)).length;
+      const completed = workLogs.filter((w: any) =>
+        COMPLETED_STAGES.includes(w.stage),
+      ).length;
       // 지연: 태스크 마감일이 지났는데 완료 이상이 아닌 일감이 남아있음
-      const overdue = !!rest.dueDate && new Date(rest.dueDate) < now && completed < total;
+      const overdue =
+        !!rest.dueDate && new Date(rest.dueDate) < now && completed < total;
       return { ...rest, workLogStats: { total, completed, overdue } };
     });
 
     return steps.map((step, idx) => ({
       ...step,
       // 단계 미지정(orphan) 태스크는 첫 컬럼에 함께 표시
-      tasks: withStats.filter((t) => t.stepId === step.id || (idx === 0 && !t.stepId)),
+      tasks: withStats.filter(
+        (t) => t.stepId === step.id || (idx === 0 && !t.stepId),
+      ),
     }));
   }
 
@@ -139,6 +165,16 @@ export class TasksService {
       ),
     );
     return { ok: true };
+  }
+
+  async findMyTasks(userId: string) {
+    return this.prisma.task.findMany({
+      where: {
+        assignees: { some: { userId } },
+      },
+      select: TASK_SELECT,
+      orderBy: { createdAt: 'desc' },
+    });
   }
 
   async findOne(taskId: string) {
@@ -167,8 +203,13 @@ export class TasksService {
         },
         attachments: {
           select: {
-            id: true, filename: true, originalName: true,
-            mimetype: true, size: true, url: true, createdAt: true,
+            id: true,
+            filename: true,
+            originalName: true,
+            mimetype: true,
+            size: true,
+            url: true,
+            createdAt: true,
             uploadedBy: { select: { id: true, name: true } },
           },
         },
@@ -185,7 +226,10 @@ export class TasksService {
     // 단계(컬럼)에 생성되면 그 컬럼의 status를 상속, 아니면 dto.status(없으면 기본 TODO)
     let status = raw.status;
     if (raw.stepId) {
-      const step = await this.prisma.step.findUnique({ where: { id: raw.stepId }, select: { status: true } });
+      const step = await this.prisma.step.findUnique({
+        where: { id: raw.stepId },
+        select: { status: true },
+      });
       if (step) status = step.status;
     }
 
@@ -210,7 +254,11 @@ export class TasksService {
           ? { createMany: { data: labelIds.map((id) => ({ labelId: id })) } }
           : undefined,
         personnel: personnelIds?.length
-          ? { createMany: { data: personnelIds.map((id) => ({ personnelId: id })) } }
+          ? {
+              createMany: {
+                data: personnelIds.map((id) => ({ personnelId: id })),
+              },
+            }
           : undefined,
       },
       select: TASK_SELECT,
@@ -263,7 +311,9 @@ export class TasksService {
     // 업무구분(category)만 필수, 요구사항(title)은 선택
     const valid = rows.filter((r) => r.category?.trim());
     if (valid.length === 0) {
-      throw new NotFoundException('등록할 유효한 데이터가 없습니다. (업무구분 필수)');
+      throw new NotFoundException(
+        '등록할 유효한 데이터가 없습니다. (업무구분 필수)',
+      );
     }
 
     // 첫 번째 컬럼(Step) — 상위/하위 모두 여기로
@@ -278,7 +328,9 @@ export class TasksService {
       where: { projectId },
       select: { user: { select: { id: true, name: true } } },
     });
-    const nameToUserId = new Map(members.map((m) => [m.user.name.trim(), m.user.id]));
+    const nameToUserId = new Map(
+      members.map((m) => [m.user.name.trim(), m.user.id]),
+    );
 
     const PRIORITIES = ['URGENT', 'HIGH', 'MEDIUM', 'LOW'];
     const normPriority = (p?: string) => {
@@ -296,7 +348,10 @@ export class TasksService {
     const grouped = new Map<string, typeof valid>();
     for (const r of valid) {
       const cat = r.category.trim();
-      if (!grouped.has(cat)) { grouped.set(cat, []); categories.push(cat); }
+      if (!grouped.has(cat)) {
+        grouped.set(cat, []);
+        categories.push(cat);
+      }
       grouped.get(cat)!.push(r);
     }
 
@@ -308,61 +363,80 @@ export class TasksService {
       where: { projectId, parentId: null, title: { in: categories } },
       select: { id: true, title: true },
     });
-    const titleToParentId = new Map(existingParents.map((p) => [p.title, p.id]));
+    const titleToParentId = new Map(
+      existingParents.map((p) => [p.title, p.id]),
+    );
 
-    await this.prisma.$transaction(async (tx) => {
-      for (const cat of categories) {  // 대량(162행+) 대비 타임아웃 여유 부여 (아래 옵션)
-        let parentId = titleToParentId.get(cat);
-        if (!parentId) {
-          const firstRow = grouped.get(cat)![0];
-          // 서브태스크 없는 행(title 없는 행)에 description이 있으면 상위 태스크에 적용
-          const parentDescRow = grouped.get(cat)!.find((r) => !r.title?.trim() && r.description?.trim());
-          const parent = await tx.task.create({
-            data: {
-              title: cat,
-              part: firstRow?.part?.trim() || undefined,
-              description: parentDescRow?.description?.trim() || undefined,
-              projectId,
-              createdById: userId,
-              stepId: firstStep?.id,
-              status: firstStep?.status ?? 'TODO',
-            },
-            select: { id: true },
-          });
-          parentId = parent.id;
-          parentCount++;
-        }
+    await this.prisma.$transaction(
+      async (tx) => {
+        for (const cat of categories) {
+          // 대량(162행+) 대비 타임아웃 여유 부여 (아래 옵션)
+          let parentId = titleToParentId.get(cat);
+          if (!parentId) {
+            const firstRow = grouped.get(cat)![0];
+            // 서브태스크 없는 행(title 없는 행)에 description이 있으면 상위 태스크에 적용
+            const parentDescRow = grouped
+              .get(cat)!
+              .find((r) => !r.title?.trim() && r.description?.trim());
+            const parent = await tx.task.create({
+              data: {
+                title: cat,
+                part: firstRow?.part?.trim() || undefined,
+                description: parentDescRow?.description?.trim() || undefined,
+                projectId,
+                createdById: userId,
+                stepId: firstStep?.id,
+                status: firstStep?.status ?? 'TODO',
+              },
+              select: { id: true },
+            });
+            parentId = parent.id;
+            parentCount++;
+          }
 
-        const children = grouped.get(cat)!.filter((r) => r.title?.trim());
-        for (let i = 0; i < children.length; i++) {
-          const r = children[i];
-          const assigneeId = r.assigneeName ? nameToUserId.get(r.assigneeName.trim()) : undefined;
-          await tx.task.create({
-            data: {
-              title: r.title!.trim(),
-              description: r.description?.trim() || undefined,
-              priority: normPriority(r.priority) as any,
-              status: firstStep?.status ?? 'TODO',
-              stepId: firstStep?.id,
-              startDate: parseDate(r.startDate),
-              dueDate: parseDate(r.dueDate),
-              order: i,
-              parentId,
-              projectId,
-              createdById: userId,
-              assignees: assigneeId ? { create: { userId: assigneeId } } : undefined,
-            },
-          });
-          childCount++;
+          const children = grouped.get(cat)!.filter((r) => r.title?.trim());
+          for (let i = 0; i < children.length; i++) {
+            const r = children[i];
+            const assigneeId = r.assigneeName
+              ? nameToUserId.get(r.assigneeName.trim())
+              : undefined;
+            await tx.task.create({
+              data: {
+                title: r.title!.trim(),
+                description: r.description?.trim() || undefined,
+                priority: normPriority(r.priority) as any,
+                status: firstStep?.status ?? 'TODO',
+                stepId: firstStep?.id,
+                startDate: parseDate(r.startDate),
+                dueDate: parseDate(r.dueDate),
+                order: i,
+                parentId,
+                projectId,
+                createdById: userId,
+                assignees: assigneeId
+                  ? { create: { userId: assigneeId } }
+                  : undefined,
+              },
+            });
+            childCount++;
+          }
         }
-      }
-    }, { timeout: 60000, maxWait: 10000 });
+      },
+      { timeout: 60000, maxWait: 10000 },
+    );
 
     return { parentCount, childCount, total: childCount };
   }
 
-  async update(taskId: string, userId: string, userRole: string, dto: UpdateTaskDto) {
-    const existing = await this.prisma.task.findUnique({ where: { id: taskId } });
+  async update(
+    taskId: string,
+    userId: string,
+    userRole: string,
+    dto: UpdateTaskDto,
+  ) {
+    const existing = await this.prisma.task.findUnique({
+      where: { id: taskId },
+    });
     if (!existing) throw new NotFoundException();
 
     if (userRole !== 'ADMIN' && existing.createdById !== userId) {
@@ -370,15 +444,21 @@ export class TasksService {
         where: { userId_projectId: { userId, projectId: existing.projectId } },
       });
       if (!member || !['OWNER', 'ADMIN'].includes(member.role)) {
-        throw new ForbiddenException('태스크 수정은 작성자 또는 관리자만 가능합니다.');
+        throw new ForbiddenException(
+          '태스크 수정은 작성자 또는 관리자만 가능합니다.',
+        );
       }
     }
 
-    const { assigneeIds, labelIds, personnelIds, startDate, dueDate, ...data } = dto;
+    const { assigneeIds, labelIds, personnelIds, startDate, dueDate, ...data } =
+      dto;
 
     // 단계(컬럼)를 바꾸면 그 단계의 status를 자동 적용 (단계가 진행 상태의 단일 기준)
     if (data.stepId && data.stepId !== existing.stepId) {
-      const step = await this.prisma.step.findUnique({ where: { id: data.stepId }, select: { status: true } });
+      const step = await this.prisma.step.findUnique({
+        where: { id: data.stepId },
+        select: { status: true },
+      });
       if (step) data.status = step.status;
     }
 
@@ -386,8 +466,12 @@ export class TasksService {
       where: { id: taskId },
       data: {
         ...data,
-        ...(startDate !== undefined && { startDate: startDate ? new Date(startDate) : null }),
-        ...(dueDate !== undefined && { dueDate: dueDate ? new Date(dueDate) : null }),
+        ...(startDate !== undefined && {
+          startDate: startDate ? new Date(startDate) : null,
+        }),
+        ...(dueDate !== undefined && {
+          dueDate: dueDate ? new Date(dueDate) : null,
+        }),
         ...(assigneeIds !== undefined && {
           assignees: {
             deleteMany: {},
@@ -403,18 +487,21 @@ export class TasksService {
         ...(personnelIds !== undefined && {
           personnel: {
             deleteMany: {},
-            createMany: { data: personnelIds.map((id) => ({ personnelId: id })) },
+            createMany: {
+              data: personnelIds.map((id) => ({ personnelId: id })),
+            },
           },
         }),
       },
       select: TASK_SELECT,
     });
 
-    const action = dto.status && dto.status !== existing.status
-      ? 'STATUS_CHANGED'
-      : dto.priority && dto.priority !== existing.priority
-      ? 'PRIORITY_CHANGED'
-      : 'UPDATED';
+    const action =
+      dto.status && dto.status !== existing.status
+        ? 'STATUS_CHANGED'
+        : dto.priority && dto.priority !== existing.priority
+          ? 'PRIORITY_CHANGED'
+          : 'UPDATED';
 
     await this.activityLogs.log({
       userId,
@@ -424,17 +511,27 @@ export class TasksService {
       entityName: task.title,
       projectId: existing.projectId,
       taskId: task.id,
-      metadata: dto.status ? { from: existing.status, to: dto.status } : undefined,
+      metadata: dto.status
+        ? { from: existing.status, to: dto.status }
+        : undefined,
     });
 
     return task;
   }
 
-  async moveTask(taskId: string, userId: string, stepId: string | null, order: number) {
+  async moveTask(
+    taskId: string,
+    userId: string,
+    stepId: string | null,
+    order: number,
+  ) {
     // 카드를 단계(컬럼)로 옮기면 그 컬럼에 매핑된 status를 그대로 따라간다
     let statusUpdate: { status?: import('@prisma/client').TaskStatus } = {};
     if (stepId) {
-      const step = await this.prisma.step.findUnique({ where: { id: stepId }, select: { status: true } });
+      const step = await this.prisma.step.findUnique({
+        where: { id: stepId },
+        select: { status: true },
+      });
       if (step) statusUpdate.status = step.status;
     }
 
@@ -446,7 +543,12 @@ export class TasksService {
 
     // 대상 컬럼의 기존 태스크(이동 대상 제외)를 순서대로 가져와 지정 위치에 삽입 후 전체 재정렬
     const siblings = await this.prisma.task.findMany({
-      where: { projectId: moving.projectId, stepId: stepId ?? null, parentId: null, id: { not: taskId } },
+      where: {
+        projectId: moving.projectId,
+        stepId: stepId ?? null,
+        parentId: null,
+        id: { not: taskId },
+      },
       orderBy: [{ order: 'asc' }, { createdAt: 'desc' }],
       select: { id: true },
     });
@@ -459,12 +561,18 @@ export class TasksService {
       ids.map((id, idx) =>
         this.prisma.task.update({
           where: { id },
-          data: id === taskId ? { stepId, order: idx, ...statusUpdate } : { order: idx },
+          data:
+            id === taskId
+              ? { stepId, order: idx, ...statusUpdate }
+              : { order: idx },
         }),
       ),
     );
 
-    const task = await this.prisma.task.findUnique({ where: { id: taskId }, select: TASK_SELECT });
+    const task = await this.prisma.task.findUnique({
+      where: { id: taskId },
+      select: TASK_SELECT,
+    });
 
     await this.activityLogs.log({
       userId,
@@ -488,7 +596,9 @@ export class TasksService {
         where: { userId_projectId: { userId, projectId: task.projectId } },
       });
       if (!member || !['OWNER', 'ADMIN'].includes(member.role)) {
-        throw new ForbiddenException('태스크 삭제는 작성자 또는 관리자만 가능합니다.');
+        throw new ForbiddenException(
+          '태스크 삭제는 작성자 또는 관리자만 가능합니다.',
+        );
       }
     }
 
