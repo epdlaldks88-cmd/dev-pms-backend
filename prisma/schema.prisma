@@ -610,7 +610,8 @@ model Room {
 }
 
 model RoomMember {
-  joinedAt DateTime @default(now())
+  joinedAt   DateTime  @default(now())
+  lastReadAt DateTime  @default(now())
 
   roomId String
   room   Room   @relation(fields: [roomId], references: [id], onDelete: Cascade)

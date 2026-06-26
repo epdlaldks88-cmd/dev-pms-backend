@@ -32,13 +32,33 @@ export class RoomsService {
       },
       orderBy: { updatedAt: 'desc' },
     });
-    return rooms.map((r) => ({
-      id: r.id,
-      name: r.name,
-      members: r.members.map((m) => m.user),
-      lastMessage: r.messages[0] ?? null,
-      updatedAt: r.updatedAt,
-    }));
+
+    // 각 방의 안 읽은 메시지 수 계산
+    const result = await Promise.all(
+      rooms.map(async (r) => {
+        const myMember = r.members.find((m) => m.userId === userId);
+        const lastReadAt = myMember?.lastReadAt ?? new Date(0);
+
+        const unreadCount = await this.prisma.roomMessage.count({
+          where: {
+            roomId: r.id,
+            createdAt: { gt: lastReadAt },
+            senderId: { not: userId }, // 내가 보낸 건 제외
+          },
+        });
+
+        return {
+          id: r.id,
+          name: r.name,
+          members: r.members.map((m) => m.user),
+          lastMessage: r.messages[0] ?? null,
+          updatedAt: r.updatedAt,
+          unreadCount,
+        };
+      }),
+    );
+
+    return result;
   }
 
   // 룸 생성
@@ -69,10 +89,16 @@ export class RoomsService {
       orderBy: { createdAt: 'asc' },
       include: { sender: USER_MINI },
     });
+
+    // 마지막 읽은 시점 갱신
+    await this.prisma.roomMember.update({
+      where: { roomId_userId: { roomId, userId } },
+      data: { lastReadAt: new Date() },
+    });
+
     return { room, messages };
   }
 
-  // 메시지 전송
   // 메시지 전송
   async send(roomId: string, userId: string, content: string) {
     await this.assertMember(roomId, userId);
