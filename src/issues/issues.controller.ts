@@ -38,7 +38,7 @@ export class IssuesController {
   }
 
   @Delete(':issueId')
-  remove(@Param('issueId') issueId: string) {
-    return this.issuesService.remove(issueId);
+  remove(@Param('issueId') issueId: string, @Req() req: any) {
+    return this.issuesService.remove(issueId, req.user.id, req.user.role);
   }
 }

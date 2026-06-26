@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateIssueDto, UpdateIssueDto } from './dto/issue.dto';
 
@@ -75,11 +79,17 @@ export class IssuesService {
     });
   }
 
-  async remove(issueId: string) {
+  // issues.service.ts
+  async remove(issueId: string, userId: string, userRole: string) {
     const issue = await this.prisma.issue.findUnique({
       where: { id: issueId },
     });
     if (!issue) throw new NotFoundException('이슈를 찾을 수 없습니다.');
+    if (userRole !== 'ADMIN' && issue.createdById !== userId) {
+      throw new ForbiddenException(
+        '이슈 작성자 또는 관리자만 삭제할 수 있습니다.',
+      );
+    }
     await this.prisma.issue.delete({ where: { id: issueId } });
     return { message: '이슈가 삭제되었습니다.' };
   }
